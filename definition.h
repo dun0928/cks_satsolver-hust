@@ -94,7 +94,7 @@ bool createFullGridLasVegas(int grid[SIZE][SIZE], int preFilled) ;
 void createFullGrid(int grid[SIZE][SIZE]) ;
 void digHoles(int grid[SIZE][SIZE], int holes) ;
 //satsolver.cpp
-int satsolver(char *filename);
+double satsolver(char *filename,int method);
 void preprocess();
 void assign_value(int literal);
 void unassign_value(int literal);

@@ -4,6 +4,9 @@
 #include "sudutocnf.hpp"
 #include "cnftosudoku.hpp"
 
+int method=0;
+
+
 int main(){
 
     int choice;
@@ -29,7 +32,8 @@ int main(){
                     writeSudokuToCNF(grid, "sudoku.cnf");
                     char sukodufile[]="sudoku.cnf";
                     //printf("111");
-                    satsolver(sukodufile);
+                    method=1;
+                    satsolver(sukodufile,method);
                     //printf("222");
                     CnftoSudoku("sudoku.res");
                     //printf("333");
@@ -51,7 +55,16 @@ int main(){
             char filename[256];
             printf("请输入CNF文件名: ");
             scanf("%s", filename);
-            satsolver(filename);
+            int time1=0;
+            int time2=0;
+            method=1;
+            time1=satsolver(filename,method);
+            method=2;
+            time2=satsolver(filename,method);
+            //printf("111");
+            double optimization;
+            optimization=(double)(time2-time1)/time2;
+            printf("优化率为%.2f%\n",optimization*100);
         }
         printf("请选择操作:\n1. 生成数独谜题\n2. 读取CNF文件并求解数独\n0. 退出\n");
         scanf("%d", &choice);

@@ -27,18 +27,20 @@ LiteralOccurrenceList *pos_literals, *neg_literals;
 uint8_t *in_unit_pos, *in_unit_neg; // 标记是否在单位子句堆中
 VariableResult results[MAX_VARS + 1];
 
-int satsolver(char *filename);
+extern int method;
+
+double satsolver(char *filename,int method);
 int  read_cnf_file(char *filename);
 void preprocess();
 void assign_value(int literal);
 void unassign_value(int literal);
-int  dpll();
 int  select_branching_variable();
+int select_basic_method();
 void write_result(int result_value, double time_used, char *filename);
-void free_memory(void);
+void free_memory();
 
 
-int satsolver(char *filename) {
+double satsolver(char *filename,int method) {
     
     if (strlen(filename) == 0) { puts("文件名不能为空"); return 1; }
 
@@ -48,19 +50,20 @@ int satsolver(char *filename) {
 
     preprocess();
     clock_t start = clock();
+    
     int sat = dpll();
-    double elapsed = (double)(clock() - start) / CLOCKS_PER_SEC;
-    write_result(sat, elapsed, filename);
+    int duration = (double)(clock() - start);
+    write_result(sat, duration, filename);
 
     if(strcmp(filename,"sudoku.cnf")==0){
         free_memory();
-        return 0;
+        return duration;
     }
-    if (sat == SAT)  printf("可满足\n用时: %.2fs\nDPLL调用: %d\n", elapsed, dpll_call_count);
-    else             printf("不可满足\n用时: %.2fs\nDPLL调用: %d\n", elapsed, dpll_call_count);
+    if (sat == SAT)  printf("可满足\n用时: %dms\n", duration);
+    else             printf("不可满足\n用时: %dms\n", duration);
 
     free_memory();
-    return 0;
+    return duration;
     
 }
 int read_cnf_file(char *filename) {
@@ -132,13 +135,13 @@ int read_cnf_file(char *filename) {
 }
 
 
-void preprocess(void) {
+void  preprocess() {
     for (int i = 0; i < original_formula_length; i++)
         if (clauses[i].original_length == 1)
             unit_clause_stack[unit_stack_size++] = clauses[i].literals[0];
 }
 
-void assign_value(int literal) {
+ void assign_value(int literal) {
     int var = abs(literal), pol = literal > 0 ? POSITIVE : NEGATIVE;
 
     /* 满足子句 */
@@ -209,7 +212,7 @@ void unassign_value(int literal) {
 }
 
 
-int dpll(void)
+int dpll()
 {
     dpll_call_count++;
 
@@ -249,8 +252,15 @@ int dpll(void)
     }
 
     /* ---------- 选择分支文字 ---------- */
-    int branch_lit = select_branching_variable();
-    int var        = abs(branch_lit);
+    int branch_lit=0;
+    if(method==1){
+        branch_lit = select_branching_variable();
+    }
+    else if(method==2){
+        branch_lit=select_basic_method();
+    }
+    
+    int var = abs(branch_lit);
 
     /* 尝试正文字 */
     results[var].value = branch_lit > 0 ? TRUE : FALSE;
@@ -289,7 +299,7 @@ int dpll(void)
 }
 
 
-int get_min_clause_length(void) {
+int get_min_clause_length() {
     int min = max_clause_length;
     for (int i = 0; i < original_formula_length; i++)
         if (!clauses[i].is_satisfied && clauses[i].current_length < min)
@@ -297,7 +307,7 @@ int get_min_clause_length(void) {
     return min;
 }
 
-int select_branching_variable(void) {
+int select_branching_variable() {
     int len = get_min_clause_length();
     unsigned int max = 0, best = 1;
     for (int v = 1; v <= num_vars; v++) {
@@ -317,8 +327,20 @@ int select_branching_variable(void) {
     return best;
 }
 
+int select_basic_method(){
+    int selected_var = 0;
+    for (int i = 1; i <= num_vars; i++) {
+        if (results[i].value == UNASSIGNED) {
+            selected_var = i;
+            break;
+        }
+    }
+    
+    return selected_var;
+}
 
-void write_result(int sat, double t, char *fn) {
+
+void  write_result(int sat, double t, char *fn) {
     char out[512];
     strcpy(out, fn);
     int L = strlen(out);
@@ -334,7 +356,7 @@ void write_result(int sat, double t, char *fn) {
     fclose(fp);
 }
 
-void free_memory(void) {
+void  free_memory() {
     for (int i = 1; i <= num_vars; i++) {
         free(pos_literals[i].list);
         free(neg_literals[i].list);
