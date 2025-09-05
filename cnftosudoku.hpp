@@ -1,6 +1,5 @@
 // 这个文件的目的是把CNF格式的数独解读出来，转换为数独二维数组
-#include "defination.h"
-#include "soudu.cpp"
+#include "definition.h"
 #include <cstring> // 添加string.h头文件
 
 int solvedGrid[SIZE][SIZE] = {0}; // 初始化为0
@@ -65,26 +64,26 @@ void printSolvedGrid() {
     }
 }
 
-int main() {
-    char filename[256];
-    printf("请输入CNF文件名: ");
-    if (fgets(filename, sizeof(filename), stdin) == NULL) {
-        printf("读取输入失败\n");
-        return 1;
-    }
-    filename[strcspn(filename, "\n")] = 0;  // 去除换行符
+// int main() {
+//     char filename[256];
+//     printf("请输入CNF文件名: ");
+//     if (fgets(filename, sizeof(filename), stdin) == NULL) {
+//         printf("读取输入失败\n");
+//         return 1;
+//     }
+//     filename[strcspn(filename, "\n")] = 0;  // 去除换行符
     
-    // 初始化网格
-    for (int i = 0; i < SIZE; i++) {
-        for (int j = 0; j < SIZE; j++) {
-            solvedGrid[i][j] = 0;
-        }
-    }
+//     // 初始化网格
+//     for (int i = 0; i < SIZE; i++) {
+//         for (int j = 0; j < SIZE; j++) {
+//             solvedGrid[i][j] = 0;
+//         }
+//     }
     
-    if (CnftoSudoku(filename)) {
-        printSolvedGrid();
-    } else {
-        printf("转换失败或无解\n");
-    }
-    return 0;
-}
+//     if (CnftoSudoku(filename)) {
+//         printSolvedGrid();
+//     } else {
+//         printf("转换失败或无解\n");
+//     }
+//     return 0;
+// }

@@ -3,7 +3,7 @@
 #include <time.h>
 #include <stdbool.h>
 #include<time.h>
-#include "defination.h"
+#include "definition.h"
 
 #define SIZE 9
 #define BOX_SIZE 3

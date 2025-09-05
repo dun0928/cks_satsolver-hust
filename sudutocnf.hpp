@@ -1,6 +1,5 @@
 //这个文件的目的是把数独问题转化为CNF格式，方便用SAT求解器来解决，数独是一个int的二维数组，没有赋值的地方为.
-#include "defination.h"
-#include "soudu.cpp"
+#include "definition.h"
 
 int ChangetoLiteral(int row, int col, int num){
     return (row-1)*81 + (col-1)*9 + num;
@@ -194,20 +193,20 @@ void writeSudokuToCNF(int grid[SIZE][SIZE], const char* filename){
 
 }
 
-int main(){
-    srand(time(0)); // 初始化随机数种子
+// int main(){
+//     srand(time(0)); // 初始化随机数种子
     
-    printf("创建完整的百分号数独...\n");
-    createFullGrid(grid);
+//     printf("创建完整的百分号数独...\n");
+//     createFullGrid(grid);
     
-    printf("完整数独:\n");
-    printGrid(grid);
+//     printf("完整数独:\n");
+//     printGrid(grid);
     
-    printf("\n挖洞后生成的数独谜题:\n");
-    digHoles(grid, 40); // 挖40个洞
+//     printf("\n挖洞后生成的数独谜题:\n");
+//     digHoles(grid, 40); // 挖40个洞
 
-    printGrid(grid);
+//     printGrid(grid);
 
-    writeSudokuToCNF(grid, "sudoku.cnf");
-    return 0;
-}
+//     writeSudokuToCNF(grid, "sudoku.cnf");
+//     return 0;
+// }
