@@ -3,38 +3,37 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+
 #define MAX_VARS 100000
 #define MAX_CLAUSES 1000000
 
-// å¸¸é‡å®šä¹‰
-#define YES 1
-#define NO 0
+// ³£Á¿¶¨Òå
 #define TRUE 1
 #define FALSE 0
 #define SAT 1
 #define UNSAT 0
 #define UNASSIGNED -1
 #define ASSIGNED 1
-#define SATISFIED 1//å­å¥ä¸ºçœŸçš„æ—¶çš„æ ‡å¿—ï¼Œè¿™ä¸ªæ˜¯åœ¨å›æº¯ä¸­çš„æ ‡å¿—ç‚¹ï¼Œå†³ç­–å±‚ä¸­çš„æ ‡å¿—ä¾¿äºå›æº¯ï¼Œå­å¥æ»¡è¶³
-#define SHRUNK 0//æ–‡å­—ä¸ºå‡æ—¶çš„ä½¿å¾—å­å¥é•¿åº¦å‡å°‘çš„æ ‡å¿—ï¼Œæ–‡å­—ç¼©å‡
+#define SATISFIED 1
+#define SHRUNK 0
 #define POSITIVE 1
 #define NEGATIVE 0
 
 typedef struct {
-    int n_number;
-    int* literal_clause;
-    int* literal_clause_pos;
+    int count;
+    int* clause_indices;
+    int* literal_positions;
     int is_assigned;
-    int is_in_unit_clause;
+    int in_unit_clause;
 } LiteralInfo;
 
 typedef struct {
     int* literals;
-    int length_original;
-    int length_current;
-    int* literals_is_assigned;
-    int is_clause_satisfied;
-    int unit_cluase_literal;
+    int original_length;
+    int current_length;
+    int* assignment_status;
+    int is_satisfied;
+    int unit_literal;
 } Clause;
 
 typedef struct {
@@ -42,111 +41,110 @@ typedef struct {
 } VariableResult;
 
 typedef struct {
-    int index_of_clause;// å—å½±å“çš„å­å¥ç´¢å¼•
-    int index_of_literal;// å—å½±å“çš„æ–‡å­—åœ¨å­å¥ä¸­çš„ä½ç½®ç´¢å¼•
+    int clause_index;
+    int literal_position;
 } ChangeRecord;
 
-
-int n_vars;
+int num_vars;
 int original_formula_length;
 int current_formula_length;
-int max_clause_len;
+int max_clause_length;
 
 LiteralInfo literal_info[MAX_VARS + 1][2];
 Clause* clauses;
-VariableResult result[MAX_VARS + 1];
+VariableResult results[MAX_VARS + 1];
 
-int unit_clause_stack[MAX_CLAUSES];//å…¨å±€å•å­å¥æ ˆ
-int n_unit_clause_stack = 0;
+int unit_clause_stack[MAX_CLAUSES];
+int unit_stack_size = 0;
 
-ChangeRecord changes_stack[MAX_CLAUSES * 10];//è®°å½•å˜æ›´æ—¶è¢«å½±å“çš„å­å¥å’Œæ–‡å­—
-int changes_stack_index = 0;//æ ˆé¡¶
+ChangeRecord change_stack[MAX_CLAUSES * 10];
+int change_stack_top = 0;
 
-int n_changes[MAX_VARS * 2][2];// å„å±‚çš„å˜æ›´è®¡æ•°ï¼Œ0ï¼šç¬¬depthå±‚äº§ç”Ÿçš„"å­å¥æ»¡è¶³"å˜æ›´æ•°é‡ 1ï¼šç¬¬depthå±‚äº§ç”Ÿçš„"æ–‡å­—ç§»é™¤"å˜æ›´æ•°é‡
+int change_counts[MAX_VARS * 2][2];
 int depth = 0;
 
-int is_contradicted = FALSE;
+int contradiction_found = FALSE;
 int conflicting_literal = 0;
 
-int dpll_called = 0;
+int dpll_call_count = 0;
 
-// å‡½æ•°å£°æ˜
-void Preprocesser();
-void Value(int v);
-void UnValue(int v);
+// º¯ÊıÉùÃ÷
+void preprocess();
+void assign_value(int literal);
+void unassign_value(int literal);
 int dpll();
-int get_length_of();
-void get_weight(int x, int k, unsigned int* s, unsigned int* t);
-int GetMaxLenOfLiteral();
-void PrintToRes(int value, double time, char* filename);
-void Free();
+int get_min_clause_length();
+void get_literal_weight(int var, int clause_len, unsigned int* pos_weight, unsigned int* neg_weight);
+int select_branching_variable();
+void write_result(int result_value, double time_used, char* filename);
+void free_memory();
 int read_cnf_file(char* filename);
 
 int main() {
     char filename[256];
     
-    printf("è¯·é€‰æ‹©è¦è¯»å–çš„cnfæ–‡ä»¶: ");
+    printf("ÇëÊäÈëÒª¶ÁÈ¡µÄcnfÎÄ¼ş: ");
     if (fgets(filename, sizeof(filename), stdin) == NULL) {
-        printf("è¯»å–è¾“å…¥å¤±è´¥\n");
+        printf("¶ÁÈ¡ÊäÈëÊ§°Ü\n");
         return 1;
     }
 
     filename[strcspn(filename, "\n")] = '\0';
 
     if (strlen(filename) == 0) {
-        printf("æ–‡ä»¶åä¸èƒ½ä¸ºç©º\n");
+        printf("ÎÄ¼şÃû²»ÄÜÎª¿Õ\n");
         return 1;
     }
     
-    clock_t start, end;
+    clock_t start_time, end_time;
     double cpu_time_used;
     
     if (!read_cnf_file(filename)) {
-        printf("Failed to read CNF file: %s\n", filename);
+        printf("¶ÁÈ¡CNFÎÄ¼şÊ§°Ü: %s\n", filename);
         return 1;
     }
     
-    // åˆå§‹åŒ–ç»“æœæ•°ç»„
-    for (int i = 1; i <= n_vars; i++) {
-        result[i].value = UNASSIGNED;
+    // ³õÊ¼»¯½á¹ûÊı×é
+    for (int i = 1; i <= num_vars; i++) {
+        results[i].value = UNASSIGNED;
     }
     
-    // é¢„å¤„ç†
-    Preprocesser();
+    // Ô¤´¦Àí
+    preprocess();
     
-    // å¼€å§‹è®¡æ—¶
-    start = clock();
+    // ¿ªÊ¼¼ÆÊ±
+    start_time = clock();
     
-    // è¿è¡ŒDPLLç®—æ³•
+    // ÔËĞĞDPLLËã·¨
     int sat_result = dpll();
     
-    // ç»“æŸè®¡æ—¶
-    end = clock();
-    cpu_time_used = ((double)(end - start)) / CLOCKS_PER_SEC;
+    // ½áÊø¼ÆÊ±
+    end_time = clock();
+    cpu_time_used = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
     
-    // è¾“å‡ºç»“æœ
-    PrintToRes(sat_result, cpu_time_used, filename);
+    // Êä³ö½á¹û
+    write_result(sat_result, cpu_time_used, filename);
     
-    // é‡Šæ”¾å†…å­˜
-    Free();
+    // ÊÍ·ÅÄÚ´æ
+    free_memory();
     
     if (sat_result == SAT) {
-        printf("SATISFIABLE\n");
-        printf("Time used: %.2f seconds\n", cpu_time_used);
-        printf("DPLL called: %d times\n", dpll_called);
+        printf("¿ÉÂú×ã\n");
+        printf("ÓÃÊ±: %.2f Ãë\n", cpu_time_used);
+        printf("DPLLµ÷ÓÃ´ÎÊı: %d\n", dpll_call_count);
     } else {
-        printf("UNSATISFIABLE\n");
-        printf("Time used: %.2f seconds\n", cpu_time_used);
-        printf("DPLL called: %d times\n", dpll_called);
+        printf("²»¿ÉÂú×ã\n");
+        printf("ÓÃÊ±: %.2f Ãë\n", cpu_time_used);
+        printf("DPLLµ÷ÓÃ´ÎÊı: %d\n", dpll_call_count);
     }
     
     return 0;
 }
 
 int read_cnf_file(char* filename) {
-    FILE* fp = fopen(filename, "r");
-    if (fp == NULL) {
-        printf("Cannot open file: %s\n", filename);
+    FILE* file = fopen(filename, "r");
+    if (file == NULL) {
+        printf("ÎŞ·¨´ò¿ªÎÄ¼ş: %s\n", filename);
         return 0;
     }
     
@@ -154,15 +152,15 @@ int read_cnf_file(char* filename) {
     int clause_count = 0;
     int max_clause_size = 0;
     
-    // ç¬¬ä¸€æ¬¡è¯»å–ï¼Œç»Ÿè®¡å­å¥æ•°é‡å’Œæœ€å¤§å­å¥é•¿åº¦,çœ‹æ‡‚äº†ä½†ä¸çŸ¥ç¬¬ç›®çš„æ˜¯ä»€ä¹ˆï¼Œæ¥ç€çœ‹
-    while (fgets(line, sizeof(line), fp)) {
+    // µÚÒ»´Î¶ÁÈ¡£¬Í³¼ÆĞÅÏ¢
+    while (fgets(line, sizeof(line), file)) {
         if (line[0] == 'c') continue;
         if (line[0] == 'p') {
-            sscanf(line, "p cnf %d %d", &n_vars, &original_formula_length);
+            sscanf(line, "p cnf %d %d", &num_vars, &original_formula_length);
             clauses = (Clause*)malloc(original_formula_length * sizeof(Clause));
             if (clauses == NULL) {
-                printf("Memory allocation failed\n");
-                fclose(fp);
+                printf("ÄÚ´æ·ÖÅäÊ§°Ü\n");
+                fclose(file);
                 return 0;
             }
             continue;
@@ -185,32 +183,32 @@ int read_cnf_file(char* filename) {
         clause_count++;
     }
     
-    max_clause_len = max_clause_size;
+    max_clause_length = max_clause_size;
     current_formula_length = original_formula_length;
     
-    // é‡ç½®æ–‡ä»¶æŒ‡é’ˆ
-    fseek(fp, 0, SEEK_SET);
+    // ÖØÖÃÎÄ¼şÖ¸Õë
+    fseek(file, 0, SEEK_SET);
     clause_count = 0;
     
-    // åˆå§‹åŒ–literal_info
-    for (int i = 1; i <= n_vars; i++) {
+    // ³õÊ¼»¯literal_info
+    for (int i = 1; i <= num_vars; i++) {
         for (int j = 0; j < 2; j++) {
-            literal_info[i][j].n_number = 0;
-            literal_info[i][j].literal_clause = NULL;
-            literal_info[i][j].literal_clause_pos = NULL;
-            literal_info[i][j].is_assigned = NO;
-            literal_info[i][j].is_in_unit_clause = NO;
+            literal_info[i][j].count = 0;
+            literal_info[i][j].clause_indices = NULL;
+            literal_info[i][j].literal_positions = NULL;
+            literal_info[i][j].is_assigned = FALSE;
+            literal_info[i][j].in_unit_clause = FALSE;
         }
     }
     
-    // ç¬¬äºŒæ¬¡è¯»å–ï¼Œå®é™…è¯»å–æ•°æ®
-    while (fgets(line, sizeof(line), fp)) {
+    // µÚ¶ş´Î¶ÁÈ¡£¬Êµ¼Ê¶ÁÈ¡Êı¾İ
+    while (fgets(line, sizeof(line), file)) {
         if (line[0] == 'c' || line[0] == 'p') continue;
         if (clause_count >= original_formula_length) break;
         
         char* token = strtok(line, " ");
         int literal_count = 0;
-        int literals[1000]; // å‡è®¾å­å¥æœ€å¤š1000ä¸ªæ–‡å­—
+        int literals[1000];
         
         while (token != NULL) {
             int literal = atoi(token);
@@ -221,272 +219,307 @@ int read_cnf_file(char* filename) {
         
         if (literal_count == 0) continue;
         
-        clauses[clause_count].length_original = literal_count;
-        clauses[clause_count].length_current = literal_count;
+        clauses[clause_count].original_length = literal_count;
+        clauses[clause_count].current_length = literal_count;
         clauses[clause_count].literals = (int*)malloc(literal_count * sizeof(int));
-        clauses[clause_count].literals_is_assigned = (int*)malloc(literal_count * sizeof(int));
-        clauses[clause_count].is_clause_satisfied = NO;
-        clauses[clause_count].unit_cluase_literal = 0;
+        clauses[clause_count].assignment_status = (int*)malloc(literal_count * sizeof(int));
+        clauses[clause_count].is_satisfied = FALSE;
+        clauses[clause_count].unit_literal = 0;
         
-        if (clauses[clause_count].literals == NULL || clauses[clause_count].literals_is_assigned == NULL) {
-            printf("Memory allocation failed\n");
-            fclose(fp);
+        if (clauses[clause_count].literals == NULL || clauses[clause_count].assignment_status == NULL) {
+            printf("ÄÚ´æ·ÖÅäÊ§°Ü\n");
+            fclose(file);
             return 0;
         }
         
         for (int i = 0; i < literal_count; i++) {
-            clauses[clause_count].literals[i] = literals[i];
-            clauses[clause_count].literals_is_assigned[i] = UNASSIGNED;
+            int literal = literals[i];
+            clauses[clause_count].literals[i] = literal;
+            clauses[clause_count].assignment_status[i] = UNASSIGNED;
             
-            int var = abs(literals[i]);
+            int var = abs(literal);
+            int polarity = (literal > 0) ? POSITIVE : NEGATIVE;
 
-            int type = (literals[i] > 0) ? POSITIVE : NEGATIVE;
-
-            if (var > n_vars || var < 1) {
-                printf("Invalid variable number: %d\n", var);
+            if (var > num_vars || var < 1) {
+                printf("ÎŞĞ§±äÁ¿±àºÅ: %d\n", var);
                 continue;
             }
             
-            // literal_infoæ•°ç»„
-            literal_info[var][type].n_number++;
-            literal_info[var][type].literal_clause = (int*)realloc(literal_info[var][type].literal_clause, 
-                literal_info[var][type].n_number * sizeof(int));
-            literal_info[var][type].literal_clause_pos = (int*)realloc(literal_info[var][type].literal_clause_pos, 
-                literal_info[var][type].n_number * sizeof(int));
+            literal_info[var][polarity].count++;
+            literal_info[var][polarity].clause_indices = (int*)realloc(
+                literal_info[var][polarity].clause_indices, 
+                literal_info[var][polarity].count * sizeof(int));
+            literal_info[var][polarity].literal_positions = (int*)realloc(
+                literal_info[var][polarity].literal_positions, 
+                literal_info[var][polarity].count * sizeof(int));
             
-            literal_info[var][type].literal_clause[literal_info[var][type].n_number - 1] = clause_count;
-            literal_info[var][type].literal_clause_pos[literal_info[var][type].n_number - 1] = i;
+            literal_info[var][polarity].clause_indices[literal_info[var][polarity].count - 1] = clause_count;
+            literal_info[var][polarity].literal_positions[literal_info[var][polarity].count - 1] = i;
         }
         
         clause_count++;
     }
     
-    fclose(fp);
+    fclose(file);
     return 1;
 }
 
-//é¢„å¤„ç†ï¼Œå°†å•å­å¥åŠ å…¥å…¨å±€å˜é‡
-void Preprocesser() {
+void preprocess() {
     for (int i = 0; i < original_formula_length; i++) {
-        if (clauses[i].length_original == 1) {
-            unit_clause_stack[n_unit_clause_stack] = clauses[i].literals[0];
-            ++n_unit_clause_stack;
+        if (clauses[i].original_length == 1) {
+            unit_clause_stack[unit_stack_size] = clauses[i].literals[0];
+            unit_stack_size++;
         }
     }
 }
 
-//è®¾ç½®å­å¥
-void Value(int v) {
-    int i;
-    int p = abs(v), q = (v > 0) ? POSITIVE : NEGATIVE;//qåœ¨infoçš„ç¬¬äºŒç»´ä¸­è¡¨ç¤ºæ­£è´Ÿ
-    for (i = 0; i < literal_info[p][q].n_number; ++i) {
-        int j = literal_info[p][q].literal_clause[i];
-        if (clauses[j].is_clause_satisfied) continue;
-        clauses[j].is_clause_satisfied = YES;//æ— è®ºå¦‚ä½•éƒ½æ»¡è¶³çš„
-        --current_formula_length;
-        changes_stack[changes_stack_index++].index_of_clause = j;
-        n_changes[depth][SATISFIED]++;
-    }//è¿™ä¸ªå¦‚æœè¦å›æº¯ï¼Œç›´æ¥æ”¹ä¸ºyes
-    q = !q;//è¿™ä¸€æ­¥éª¤å¤„ç†ç›¸åå±æ€§çš„æ–‡å­—ï¼Œå°±æ˜¯å»ç¼©çŸ­å­å¥é•¿åº¦
-
-    for (i = 0; i < literal_info[p][q].n_number; ++i) {
-        int j = literal_info[p][q].literal_clause[i];
-        if (clauses[j].is_clause_satisfied) continue;
-        int k = literal_info[p][q].literal_clause_pos[i];//æ‰¾åˆ°å‡ºç°çš„ä½ç½®
-        --clauses[j].length_current;//ç¼©çŸ­å­å¥é•¿åº¦
-        clauses[j].literals_is_assigned[k] = ASSIGNED;
-        changes_stack[changes_stack_index].index_of_clause = j;
-        changes_stack[changes_stack_index++].index_of_literal = k;//è¿™é‡Œä¸ä¸Šé¢ä¸åŒï¼Œå› ä¸ºå›æº¯å¾—æ‰¾åˆ°ä½ç½®å†å›æº¯çš„
-        n_changes[depth][SHRUNK]++;
-        if (clauses[j].length_current == 1) {//å•å­å¥
-            int location = -1;
-            for (int i_literal = 0; i_literal < clauses[j].length_original; i_literal++) {
-                if (clauses[j].literals_is_assigned[i_literal] == UNASSIGNED) {
-                    location = i_literal;
+void assign_value(int literal) {
+    int var = abs(literal);
+    int polarity = (literal > 0) ? POSITIVE : NEGATIVE;
+    
+    // ´¦ÀíÏàÍ¬¼«ĞÔµÄÎÄ×Ö£¨Âú×ã×Ó¾ä£©
+    for (int i = 0; i < literal_info[var][polarity].count; i++) {
+        int clause_idx = literal_info[var][polarity].clause_indices[i];
+        if (clauses[clause_idx].is_satisfied) continue;
+        
+        clauses[clause_idx].is_satisfied = TRUE;
+        current_formula_length--;
+        change_stack[change_stack_top].clause_index = clause_idx;
+        change_stack_top++;
+        change_counts[depth][SATISFIED]++;
+    }
+    
+    // ´¦ÀíÏà·´¼«ĞÔµÄÎÄ×Ö£¨Ëõ¼õ×Ó¾ä£©
+    int opposite_polarity = !polarity;
+    for (int i = 0; i < literal_info[var][opposite_polarity].count; i++) {
+        int clause_idx = literal_info[var][opposite_polarity].clause_indices[i];
+        if (clauses[clause_idx].is_satisfied) continue;
+        
+        int literal_pos = literal_info[var][opposite_polarity].literal_positions[i];
+        clauses[clause_idx].current_length--;
+        clauses[clause_idx].assignment_status[literal_pos] = ASSIGNED;
+        
+        change_stack[change_stack_top].clause_index = clause_idx;
+        change_stack[change_stack_top].literal_position = literal_pos;
+        change_stack_top++;
+        change_counts[depth][SHRUNK]++;
+        
+        // ¼ì²éÊÇ·ñ³ÉÎªµ¥×Ó¾ä
+        if (clauses[clause_idx].current_length == 1) {
+            int unassigned_pos = -1;
+            for (int j = 0; j < clauses[clause_idx].original_length; j++) {
+                if (clauses[clause_idx].assignment_status[j] == UNASSIGNED) {
+                    unassigned_pos = j;
                     break;
                 }
             }
-            //if (location == -1) continue;
             
-            int w = clauses[j].literals[location];
-            int s = abs(w), t = (w > 0) ? POSITIVE : NEGATIVE;
-            if (literal_info[s][(!t)].is_in_unit_clause == YES) {
-                is_contradicted = TRUE;
-                conflicting_literal = w;
-            }//äº§ç”ŸçŸ›ç›¾ï¼Œæ—¢è¦åˆè¦
-            else if (literal_info[s][t].is_in_unit_clause == NO) {
-                unit_clause_stack[n_unit_clause_stack] = clauses[j].unit_cluase_literal = w;
-                literal_info[s][t].is_in_unit_clause = YES;
-                ++n_unit_clause_stack;
-            }
-        }
-    }
-    literal_info[p][NEGATIVE].is_assigned = YES;
-    literal_info[p][POSITIVE].is_assigned = YES;//è¢«èµ‹å€¼
-    ++depth;
-}
-
-//å–æ¶ˆè®¾ç½®
-void UnValue(int v){
-    int i;
-    int p = abs(v), q = (v > 0) ? SATISFIED : SHRUNK;
-    --depth;
-    while (n_changes[depth][SHRUNK]){
-        --n_changes[depth][SHRUNK];
-        int j = changes_stack[--changes_stack_index].index_of_clause;
-        int k = changes_stack[changes_stack_index].index_of_literal;
-        ++clauses[j].length_current;
-        if (clauses[j].length_current == 2) {
-            int s = abs(clauses[j].unit_cluase_literal);
-            int t = (clauses[j].unit_cluase_literal > 0) ? SATISFIED : SHRUNK;
-            if (s >= 1 && s <= n_vars) {
-                literal_info[s][t].is_in_unit_clause = NO;
-            }
-            clauses[j].unit_cluase_literal = 0;
-        }
-        clauses[j].literals_is_assigned[k] = UNASSIGNED;
-    }
-    while (n_changes[depth][SATISFIED])	{
-        --n_changes[depth][SATISFIED];
-        int j = changes_stack[--changes_stack_index].index_of_clause;
-        clauses[j].is_clause_satisfied = NO;
-        ++current_formula_length;
-    }
-    literal_info[p][SATISFIED].is_assigned = NO;
-    literal_info[p][SHRUNK].is_assigned = NO;
-}
-
-
-int dpll() {
-    ++dpll_called;
-    if(dpll_called%10000==0){
-        printf("%d",dpll_called/10000);
-    }
-    int* local_stack = NULL;
-    unsigned int n_local_stack = 0;
-    while (1) {
-        if (is_contradicted) {
-            int cl = abs(conflicting_literal);
-            while (n_local_stack) {
-                UnValue(local_stack[--n_local_stack]);
-                int s = abs(local_stack[n_local_stack]);
-                if (s >= 1 && s <= n_vars) {
-                    result[s].value = UNASSIGNED;
+            if (unassigned_pos != -1) {
+                int unit_literal = clauses[clause_idx].literals[unassigned_pos];
+                int unit_var = abs(unit_literal);
+                int unit_polarity = (unit_literal > 0) ? POSITIVE : NEGATIVE;
+                
+                if (literal_info[unit_var][!unit_polarity].in_unit_clause) {
+                    contradiction_found = TRUE;
+                    conflicting_literal = unit_literal;
+                } else if (!literal_info[unit_var][unit_polarity].in_unit_clause) {
+                    unit_clause_stack[unit_stack_size] = clauses[clause_idx].unit_literal = unit_literal;
+                    literal_info[unit_var][unit_polarity].in_unit_clause = TRUE;
+                    unit_stack_size++;
                 }
             }
-            is_contradicted = FALSE;
-            free(local_stack);
-            n_unit_clause_stack = 0;
-            return UNSAT;
         }
-        else if (n_unit_clause_stack) {//è¿™ä¸ªæ˜¯å…¨å±€çš„å•å­å¥å“ˆ
-            local_stack = (int*)realloc(local_stack, (n_local_stack + 1) * sizeof(int));
-            if (local_stack == NULL) {
-                printf("Memory allocation failed in dpll\n");
+    }
+    
+    literal_info[var][NEGATIVE].is_assigned = TRUE;
+    literal_info[var][POSITIVE].is_assigned = TRUE;
+    depth++;
+}
+
+void unassign_value(int literal) {
+    int var = abs(literal);
+    depth--;
+    
+    // »Ö¸´Ëõ¼õµÄ×Ó¾ä
+    while (change_counts[depth][SHRUNK] > 0) {
+        change_counts[depth][SHRUNK]--;
+        ChangeRecord change = change_stack[--change_stack_top];
+        int clause_idx = change.clause_index;
+        int literal_pos = change.literal_position;
+        
+        clauses[clause_idx].current_length++;
+        if (clauses[clause_idx].current_length == 2) {
+            int unit_lit = clauses[clause_idx].unit_literal;
+            int unit_var = abs(unit_lit);
+            int unit_pol = (unit_lit > 0) ? POSITIVE : NEGATIVE;
+            
+            if (unit_var >= 1 && unit_var <= num_vars) {
+                literal_info[unit_var][unit_pol].in_unit_clause = FALSE;
+            }
+            clauses[clause_idx].unit_literal = 0;
+        }
+        clauses[clause_idx].assignment_status[literal_pos] = UNASSIGNED;
+    }
+    
+    // »Ö¸´Âú×ãµÄ×Ó¾ä
+    while (change_counts[depth][SATISFIED] > 0) {
+        change_counts[depth][SATISFIED]--;
+        int clause_idx = change_stack[--change_stack_top].clause_index;
+        clauses[clause_idx].is_satisfied = FALSE;
+        current_formula_length++;
+    }
+    
+    literal_info[var][POSITIVE].is_assigned = FALSE;
+    literal_info[var][NEGATIVE].is_assigned = FALSE;
+}
+
+int dpll() {
+    dpll_call_count++;
+    if (dpll_call_count % 1000000 == 0) {
+        printf("%d  ", dpll_call_count / 1000000);
+    }
+    
+    int* local_assignments = NULL;
+    unsigned int local_assign_count = 0;
+    
+    while (TRUE) {
+        if (contradiction_found) {
+            // »ØËİ´¦ÀíÃ¬¶Ü
+            while (local_assign_count > 0) {
+                int literal = local_assignments[--local_assign_count];
+                unassign_value(literal);
+                int var = abs(literal);
+                if (var >= 1 && var <= num_vars) {
+                    results[var].value = UNASSIGNED;
+                }
+            }
+            free(local_assignments);
+            contradiction_found = FALSE;
+            unit_stack_size = 0;
+            return UNSAT;
+        } else if (unit_stack_size > 0) {
+            // ´¦Àíµ¥×Ó¾ä
+            local_assignments = (int*)realloc(local_assignments, (local_assign_count + 1) * sizeof(int));
+            if (local_assignments == NULL) {
+                printf("DPLLÄÚ´æ·ÖÅäÊ§°Ü\n");
                 exit(1);
             }
-            int implied_lit = unit_clause_stack[--n_unit_clause_stack];
-            local_stack[n_local_stack++] = implied_lit;//è¿™ä¸ªå•å­å¥æ­£è´Ÿä¸ç¡®å®šï¼Œæ˜¯ä¸ªæ–‡å­—
-            int var = abs(implied_lit);
-            if (var >= 1 && var <= n_vars) {
-                result[var].value = implied_lit > 0 ? TRUE : FALSE;
+            
+            int unit_literal = unit_clause_stack[--unit_stack_size];
+            local_assignments[local_assign_count++] = unit_literal;
+            int var = abs(unit_literal);
+            
+            if (var >= 1 && var <= num_vars) {
+                results[var].value = (unit_literal > 0) ? TRUE : FALSE;
             }
-            Value(implied_lit);//å•å­å¥ç¡®å®šèµ‹å€¼
+            assign_value(unit_literal);
+        } else {
+            break;
         }
-        else break;
     }
-    if (!current_formula_length) return SAT;//é€’å½’ç»“æŸ
-
     
-    int v = GetMaxLenOfLiteral();//å˜å…ƒé€‰å–ç­–ç•¥ï¼Œä¸ä¸Šé¢çš„ä¸åŒï¼Œè¿™é‡Œæ˜¯é€‰æ‹©ä¸€ä¸ªæ¯”è¾ƒåˆé€‚çš„èµ‹å€¼ï¼Œå¦‚æœæ˜¯å•å­å¥ï¼Œç›´æ¥èµ‹å€¼value
-    int var_v = abs(v);
-    if (var_v >= 1 && var_v <= n_vars) {
-        result[var_v].value = v > 0 ? TRUE : FALSE;
+    if (current_formula_length == 0) return SAT;
+    
+    // Ñ¡Ôñ·ÖÖ§±äÁ¿
+    int branch_literal = select_branching_variable();
+    int branch_var = abs(branch_literal);
+    
+    if (branch_var >= 1 && branch_var <= num_vars) {
+        results[branch_var].value = (branch_literal > 0) ? TRUE : FALSE;
     }
-    Value(v);
+    
+    // ³¢ÊÔÕı¸³Öµ
+    assign_value(branch_literal);
     if (dpll()) return SAT;
-    UnValue(v);
-    if (var_v >= 1 && var_v <= n_vars) {
-        result[var_v].value = !result[var_v].value;
+    unassign_value(branch_literal);
+    
+    // ³¢ÊÔ¸º¸³Öµ
+    if (branch_var >= 1 && branch_var <= num_vars) {
+        results[branch_var].value = !results[branch_var].value;
     }
-    Value(-v);
+    assign_value(-branch_literal);
     if (dpll()) return SAT;
-    UnValue(-v);
-    if (var_v >= 1 && var_v <= n_vars) {
-        result[var_v].value = UNASSIGNED;
+    unassign_value(-branch_literal);
+    
+    // »Ö¸´×´Ì¬
+    if (branch_var >= 1 && branch_var <= num_vars) {
+        results[branch_var].value = UNASSIGNED;
     }
-    while (n_local_stack) {
-        int z = local_stack[--n_local_stack];
-        UnValue(z);
-        int var_z = abs(z);
-        if (var_z >= 1 && var_z <= n_vars) {
-            result[var_z].value = UNASSIGNED;
+    
+    while (local_assign_count > 0) {
+        int literal = local_assignments[--local_assign_count];
+        unassign_value(literal);
+        int var = abs(literal);
+        if (var >= 1 && var <= num_vars) {
+            results[var].value = UNASSIGNED;
         }
     }
-    free(local_stack);
-    is_contradicted = FALSE;
+    
+    free(local_assignments);
+    contradiction_found = FALSE;
     return UNSAT;
 }
 
-int get_length_of() {
-    int min = max_clause_len;  
-    if (min == 2) return 2;
+int get_min_clause_length() {
+    int min_length = max_clause_length;
     
-    // ç›´æ¥éå†æ‰€æœ‰å­å¥
-    for (int j = 0; j < original_formula_length; j++) {
-        if (clauses[j].is_clause_satisfied) {
-            continue;
+    for (int i = 0; i < original_formula_length; i++) {
+        if (clauses[i].is_satisfied) continue;
+        
+        if (clauses[i].current_length < min_length) {
+            min_length = clauses[i].current_length;
+            if (min_length == 2) return 2;
         }
-        if (clauses[j].length_current < min) {
-            min = clauses[j].length_current;
-            if (min == 2) {
-                return 2;
+    }
+    
+    return min_length;
+}
+
+void get_literal_weight(int var, int clause_len, unsigned int* pos_weight, unsigned int* neg_weight) {
+    *pos_weight = *neg_weight = 0;
+    
+    for (int i = 0; i < literal_info[var][POSITIVE].count; i++) {
+        int clause_idx = literal_info[var][POSITIVE].clause_indices[i];
+        if (clauses[clause_idx].current_length == clause_len && !clauses[clause_idx].is_satisfied) {
+            (*pos_weight)++;
+        }
+    }
+    
+    for (int i = 0; i < literal_info[var][NEGATIVE].count; i++) {
+        int clause_idx = literal_info[var][NEGATIVE].clause_indices[i];
+        if (clauses[clause_idx].current_length == clause_len && !clauses[clause_idx].is_satisfied) {
+            (*neg_weight)++;
+        }
+    }
+}
+
+int select_branching_variable() {
+    unsigned int max_score = 0;
+    unsigned int pos_score, neg_score, total_score;
+    int selected_var = 0;
+    
+    int min_clause_len = get_min_clause_length();
+    
+    for (int i = 1; i <= num_vars; i++) {
+        if (results[i].value == UNASSIGNED) {
+            get_literal_weight(i, min_clause_len, &pos_score, &neg_score);
+            total_score = (pos_score + 1) * (neg_score + 1);
+            
+            if (total_score > max_score) {
+                max_score = total_score;
+                selected_var = (pos_score >= neg_score) ? i : -i;
             }
         }
     }
     
-    return min;
+    return selected_var;
 }
 
-void get_weight(int x, int k, unsigned int* s, unsigned int* t) {
-    int j, c;
-    *s = *t = 0;
-    for (j = 0; j < literal_info[x][SATISFIED].n_number; ++j) {
-        c = literal_info[x][SATISFIED].literal_clause[j];//è·å–åŒ…å«æ­£æ–‡å­—xçš„å­å¥ç¼–å·
-        if (clauses[c].length_current == k)
-            *s += 1 - clauses[c].is_clause_satisfied;
-    }
-    for (j = 0; j < literal_info[x][SHRUNK].n_number; ++j) {//è·å–åŒ…å«è´Ÿæ–‡å­—?xçš„å­å¥ç¼–å·
-        c = literal_info[x][SHRUNK].literal_clause[j];
-        if (clauses[c].length_current == k)
-            *t += 1 - clauses[c].is_clause_satisfied;
-    }
-}
-
-int GetMaxLenOfLiteral() {
-    unsigned int i, k;
-    unsigned int max = 0, r, s, t;
-    int u = 0;
-    k = get_length_of();//è·å–æœ€çŸ­å­å¥é•¿åº¦
-    for (i = 1; i <= n_vars; ++i) {
-        if (result[i].value == UNASSIGNED) {//é€‰æ‹©æ²¡æœ‰è¢«èµ‹å€¼çš„å˜å…ƒ
-            get_weight(i, k, &s, &t);//iåœ¨kå­å¥ä¸­çš„æƒé‡
-            r = (s + 1) * (t + 1);
-            if (r > max) {
-                max = r;
-                if (s >= t) u = i;
-                else u = -(int)i;
-            }
-        }
-    }
-    return u;
-}
-
-//å°†æ±‚è§£ç»“æœè¾“å‡ºåˆ°resæ–‡ä»¶
-void PrintToRes(int value, double time, char* filename) {
+void write_result(int result_value, double time_used, char* filename) {
     char res_filename[256];
     strcpy(res_filename, filename);
     int len = strlen(res_filename);
+    
     if (len > 3) {
         res_filename[len - 3] = 'r';
         res_filename[len - 2] = 'e';
@@ -495,42 +528,40 @@ void PrintToRes(int value, double time, char* filename) {
         strcat(res_filename, ".res");
     }
     
-    FILE* fp = fopen(res_filename, "w");
-    if (fp == NULL) {
-        printf("æ‰“å¼€æ–‡ä»¶%så¤±è´¥\n", res_filename);
+    FILE* file = fopen(res_filename, "w");
+    if (file == NULL) {
+        printf("ÎŞ·¨´´½¨½á¹ûÎÄ¼ş: %s\n", res_filename);
         return;
     }
     
-    if (value == SAT) {
-        fprintf(fp, "s 1\n");
-        fprintf(fp, "v");
-        for (int i = 1; i <= n_vars; i++) {
-            if (result[i].value == TRUE) {
-                fprintf(fp, " %d", i);
+    if (result_value == SAT) {
+        fprintf(file, "s 1\n");
+        fprintf(file, "v");
+        for (int i = 1; i <= num_vars; i++) {
+            if (results[i].value == TRUE) {
+                fprintf(file, " %d", i);
             } else {
-                fprintf(fp, " -%d", i);
+                fprintf(file, " -%d", i);
             }
         }
-        fprintf(fp, "\n");
-        fprintf(fp, "t %d\n", time*1000);
-    } else if (value == UNSAT) {
-        fprintf(fp, "s 0\n");
-        fprintf(fp, "t %d\n", time*1000);
+        fprintf(file, "\n");
+        fprintf(file, "t %.0f\n", time_used * 1000);
+    } else {
+        fprintf(file, "s 0\n");
+        fprintf(file, "t %.0f\n", time_used * 1000);
     }
-    fclose(fp);
+    
+    fclose(file);
 }
 
-//é‡Šæ”¾åˆ†é…çš„å†…å­˜
-void Free() {
-    for (int i = 1; i <= n_vars; i++) {
+void free_memory() {
+    for (int i = 1; i <= num_vars; i++) {
         for (int j = 0; j < 2; j++) {
-            if (literal_info[i][j].literal_clause) {
-                free(literal_info[i][j].literal_clause);
-                literal_info[i][j].literal_clause = NULL;
+            if (literal_info[i][j].clause_indices) {
+                free(literal_info[i][j].clause_indices);
             }
-            if (literal_info[i][j].literal_clause_pos) {
-                free(literal_info[i][j].literal_clause_pos);
-                literal_info[i][j].literal_clause_pos = NULL;
+            if (literal_info[i][j].literal_positions) {
+                free(literal_info[i][j].literal_positions);
             }
         }
     }
@@ -539,14 +570,11 @@ void Free() {
         for (int i = 0; i < original_formula_length; i++) {
             if (clauses[i].literals) {
                 free(clauses[i].literals);
-                clauses[i].literals = NULL;
             }
-            if (clauses[i].literals_is_assigned) {
-                free(clauses[i].literals_is_assigned);
-                clauses[i].literals_is_assigned = NULL;
+            if (clauses[i].assignment_status) {
+                free(clauses[i].assignment_status);
             }
         }
         free(clauses);
-        clauses = NULL;
     }
 }
