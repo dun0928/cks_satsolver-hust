@@ -42,12 +42,8 @@ int CnftoSudoku(const char* filename) {
                 int col = (var_index % (9 * 9)) / 9;
                 int num = (var_index % 9) + 1;
                 
-                // 确保在有效范围内
                 if (row >= 0 && row < SIZE && col >= 0 && col < SIZE) {
                     solvedGrid[row][col] = num;
-                    // 调试输出
-                    printf("字面量: %d, 位置: (%d, %d), 数字: %d\n", 
-                           literal, row, col, num);
                 }
             }
             

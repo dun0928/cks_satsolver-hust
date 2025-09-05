@@ -18,6 +18,7 @@ void writeSudokuToCNF(int grid[SIZE][SIZE], const char* filename){
     int literalCount = 0;
     int clauseCount = 0;
     long headerPos = ftell(file); // 记录当前位置（头部结束的位置）
+    fprintf(file, "p cnf %d %d       \n", SIZE*SIZE*SIZE, clauseCount);
     //下面为格约束
     for(int i=1;i<=SIZE;i++){
         for(int j=1;j<=SIZE;j++){
@@ -187,7 +188,6 @@ void writeSudokuToCNF(int grid[SIZE][SIZE], const char* filename){
     // 回到文件头部更新子句数量
     fseek(file, headerPos, SEEK_SET);
     fprintf(file, "p cnf %d %d\n", SIZE*SIZE*SIZE, clauseCount);
-    
     fclose(file);
     printf("CNF文件已生成，共%d个子句\n", clauseCount);
     
