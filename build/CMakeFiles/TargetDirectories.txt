@@ -1,0 +1,11 @@
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/qt_gui.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/core_lib.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/sudoku.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/edit_cache.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/rebuild_cache.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/qt_gui_autogen_timestamp_deps.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/qt_gui_autogen.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/core_lib_autogen_timestamp_deps.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/core_lib_autogen.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/sudoku_autogen_timestamp_deps.dir
+C:/Users/SZY/Desktop/csk_szy/build/CMakeFiles/sudoku_autogen.dir

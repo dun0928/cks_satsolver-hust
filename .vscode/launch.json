@@ -8,8 +8,8 @@
       "args": [],
       "stopAtEntry": false,
       "externalConsole": true,
-      "cwd": "c:/Users/SZY/Desktop/csk_szy",
-      "program": "c:/Users/SZY/Desktop/csk_szy/build/Debug/outDebug",
+      "cwd": "c:/Users/SZY/Desktop/csk_szy/sudukuqt",
+      "program": "c:/Users/SZY/Desktop/csk_szy/sudukuqt/build/Debug/outDebug",
       "MIMode": "gdb",
       "miDebuggerPath": "gdb",
       "setupCommands": [
@@ -18,7 +18,8 @@
           "text": "-enable-pretty-printing",
           "ignoreFailures": true
         }
-      ]
+      ],
+      "visualizerFile": "c:\\Users\\SZY\\AppData\\Roaming\\Code\\User\\workspaceStorage\\cb64fd332713c0c4f53cf8fa38afbb89\\tonka3000.qtvsctools\\qt.natvis.xml"
     }
   ]
 }

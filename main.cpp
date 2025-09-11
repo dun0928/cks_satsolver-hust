@@ -10,7 +10,7 @@ int method=0;
 int main(){
 
     int choice;
-    printf("请选择操作:\n1. 生成数独谜题\n2. 读取CNF文件并求解数独\n0. 退出\n");
+    printf("请选择操作:\n1. 生成数独谜题\n2. 读取CNF文件并求解CNF\n0. 退出\n");
     scanf("%d", &choice);
     while(choice==1||choice==2){
         if(choice==1){
@@ -22,12 +22,12 @@ int main(){
             printf("挖洞后的数独谜题:\n");
             printGrid(grid);
             int next;
-            printf("请选择操作:\n1. sukudo处理\n2. 展示sukudo结果\n0. 退出到上一级\n ");
+            printf("请选择操作:\n1. sukudo处理\n2. 展示sukudo结果\n 3. 交互模式\n0. 退出到上一级\n ");
             scanf("%d", &next);
-            if(next!=0&&next!=1&&next!=2){
+            if(next!=0&&next!=1&&next!=2&&next!=3){
                 printf("输入错误，请重新输入\n");
             }
-            while(next==1||next==2){
+            while(next==1||next==2||next==3){
                 if(next==1){   
                     writeSudokuToCNF(grid, "sudoku.cnf");
                     char sukodufile[]="sudoku.cnf";
@@ -43,10 +43,13 @@ int main(){
                     printSolvedGrid();
                 }else if(next==0){
                     break;
+                }else if(next==3){
+                    interactiveMode();
                 }
-                printf("请选择操作:\n1. sukudo处理\n2. 展示sukudo结果\n0. 退出\n ");
+                
+                printf("请选择操作:\n1. sukudo处理\n2. 展示sukudo结果\n 3.交互模式\n0. 退出\n ");
                 scanf("%d", &next);
-                if(next!=0&&next!=1&&next!=2){
+                if(next!=0&&next!=1&&next!=2&&next!=3){
                     printf("输入错误，请重新输入\n");
                 }
             }
@@ -58,9 +61,22 @@ int main(){
             int time1=0;
             int time2=0;
             method=1;
+            printf("是否展示读取的cnf结果？1.是 0.否\n");
+            int show;
+            scanf("%d",&show);
+            if(show==1){
+                print_cnf(filename);
+            }
             time1=satsolver(filename,method);
             method=2;
             time2=satsolver(filename,method);
+            char *dot = strrchr(filename, '.');
+            if (dot) {
+            strcpy(dot, ".res");
+            } else {
+                strcat(filename, ".res");
+            }
+            printf_res(filename);
             //printf("111");
             double optimization;
             optimization=(double)(time2-time1)/time2;

@@ -1,0 +1,7 @@
+set(__QT_DEPLOY_TARGET_qt_gui_FILE C:/Users/SZY/Desktop/csk_szy/build/libqt_gui.a)
+set(__QT_DEPLOY_TARGET_qt_gui_TYPE STATIC_LIBRARY)
+set(__QT_DEPLOY_TARGET_core_lib_FILE C:/Users/SZY/Desktop/csk_szy/build/libcore_lib.a)
+set(__QT_DEPLOY_TARGET_core_lib_TYPE STATIC_LIBRARY)
+set(__QT_DEPLOY_TARGET_sudoku_FILE C:/Users/SZY/Desktop/csk_szy/build/sudoku.exe)
+set(__QT_DEPLOY_TARGET_sudoku_TYPE EXECUTABLE)
+set(__QT_DEPLOY_TARGET_sudoku_RUNTIME_DLLS C:/Qt/6.9.2/mingw_64/bin/Qt6Widgets.dll;C:/Qt/6.9.2/mingw_64/bin/Qt6Gui.dll;C:/Qt/6.9.2/mingw_64/bin/Qt6Core.dll)

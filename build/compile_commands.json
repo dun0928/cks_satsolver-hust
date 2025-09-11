@@ -1,0 +1,38 @@
+[
+{
+  "directory": "C:/Users/SZY/Desktop/csk_szy/build",
+  "command": "C:\\Qt\\Tools\\mingw1310_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/qt_gui.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles\\qt_gui.dir\\qt_gui_autogen\\mocs_compilation.cpp.obj -c C:\\Users\\SZY\\Desktop\\csk_szy\\build\\qt_gui_autogen\\mocs_compilation.cpp",
+  "file": "C:/Users/SZY/Desktop/csk_szy/build/qt_gui_autogen/mocs_compilation.cpp",
+  "output": "CMakeFiles/qt_gui.dir/qt_gui_autogen/mocs_compilation.cpp.obj"
+},
+{
+  "directory": "C:/Users/SZY/Desktop/csk_szy/build",
+  "command": "C:\\Qt\\Tools\\mingw1310_64\\bin\\g++.exe -DMINGW_HAS_SECURE_API=1 -DQT_CORE_LIB -DQT_GUI_LIB -DQT_WIDGETS_LIB -DUNICODE -DWIN32 -DWIN64 -D_ENABLE_EXTENDED_ALIGNED_STORAGE -D_UNICODE -D_WIN64 @CMakeFiles/qt_gui.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles\\qt_gui.dir\\qt\\sudoku_gui.cpp.obj -c C:\\Users\\SZY\\Desktop\\csk_szy\\Qt\\qt\\sudoku_gui.cpp",
+  "file": "C:/Users/SZY/Desktop/csk_szy/Qt/qt/sudoku_gui.cpp",
+  "output": "CMakeFiles/qt_gui.dir/qt/sudoku_gui.cpp.obj"
+},
+{
+  "directory": "C:/Users/SZY/Desktop/csk_szy/build",
+  "command": "C:\\Qt\\Tools\\mingw1310_64\\bin\\g++.exe -DUSE_QT_GUI @CMakeFiles/core_lib.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles\\core_lib.dir\\core_lib_autogen\\mocs_compilation.cpp.obj -c C:\\Users\\SZY\\Desktop\\csk_szy\\build\\core_lib_autogen\\mocs_compilation.cpp",
+  "file": "C:/Users/SZY/Desktop/csk_szy/build/core_lib_autogen/mocs_compilation.cpp",
+  "output": "CMakeFiles/core_lib.dir/core_lib_autogen/mocs_compilation.cpp.obj"
+},
+{
+  "directory": "C:/Users/SZY/Desktop/csk_szy/build",
+  "command": "C:\\Qt\\Tools\\mingw1310_64\\bin\\g++.exe -DUSE_QT_GUI @CMakeFiles/core_lib.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles\\core_lib.dir\\main.cpp.obj -c C:\\Users\\SZY\\Desktop\\csk_szy\\Qt\\main.cpp",
+  "file": "C:/Users/SZY/Desktop/csk_szy/Qt/main.cpp",
+  "output": "CMakeFiles/core_lib.dir/main.cpp.obj"
+},
+{
+  "directory": "C:/Users/SZY/Desktop/csk_szy/build",
+  "command": "C:\\Qt\\Tools\\mingw1310_64\\bin\\g++.exe -DUSE_QT_GUI @CMakeFiles/sudoku.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles\\sudoku.dir\\sudoku_autogen\\mocs_compilation.cpp.obj -c C:\\Users\\SZY\\Desktop\\csk_szy\\build\\sudoku_autogen\\mocs_compilation.cpp",
+  "file": "C:/Users/SZY/Desktop/csk_szy/build/sudoku_autogen/mocs_compilation.cpp",
+  "output": "CMakeFiles/sudoku.dir/sudoku_autogen/mocs_compilation.cpp.obj"
+},
+{
+  "directory": "C:/Users/SZY/Desktop/csk_szy/build",
+  "command": "C:\\Qt\\Tools\\mingw1310_64\\bin\\g++.exe -DUSE_QT_GUI @CMakeFiles/sudoku.dir/includes_CXX.rsp -g -std=gnu++17 -o CMakeFiles\\sudoku.dir\\main.cpp.obj -c C:\\Users\\SZY\\Desktop\\csk_szy\\Qt\\main.cpp",
+  "file": "C:/Users/SZY/Desktop/csk_szy/Qt/main.cpp",
+  "output": "CMakeFiles/sudoku.dir/main.cpp.obj"
+}
+]

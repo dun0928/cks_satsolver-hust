@@ -1,0 +1,2 @@
+C:\Qt\Tools\mingw1310_64\bin\ar.exe qc libqt_gui.a CMakeFiles/qt_gui.dir/qt_gui_autogen/mocs_compilation.cpp.obj CMakeFiles/qt_gui.dir/qt/sudoku_gui.cpp.obj
+C:\Qt\Tools\mingw1310_64\bin\ranlib.exe libqt_gui.a

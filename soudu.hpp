@@ -9,6 +9,7 @@
 #define BOX_SIZE 3
 
 int grid[SIZE][SIZE]; // 定义数独网格
+int playerGrid[SIZE][SIZE]; // 交互数独
 
 // 打印数独网格
 void printGrid(int grid[SIZE][SIZE]) {
@@ -73,10 +74,8 @@ bool isSafeInDiagonal(int grid[SIZE][SIZE], int row, int col, int num) {
     }
     return true;
 }
-
-// 检查数字在窗口中是否有效
 bool isSafeInWindow(int grid[SIZE][SIZE], int row, int col, int num) {
-    // 第一个窗口 (2-4行, 2-4列)
+
     if (row >= 1 && row <= 3 && col >= 1 && col <= 3) {
         for (int i = 1; i <= 3; i++) {
             for (int j = 1; j <= 3; j++) {
@@ -87,7 +86,7 @@ bool isSafeInWindow(int grid[SIZE][SIZE], int row, int col, int num) {
         }
     }
     
-    // 第二个窗口 (6-8行, 6-8列)
+
     if (row >= 5 && row <= 7 && col >= 5 && col <= 7) {
         for (int i = 5; i <= 7; i++) {
             for (int j = 5; j <= 7; j++) {
@@ -111,7 +110,7 @@ bool isSafe(int grid[SIZE][SIZE], int row, int col, int num) {
 }
 
 // 查找未分配的位置
-bool findUnassignedLocation(int grid[SIZE][SIZE], int *row, int *col) {
+bool findholes(int grid[SIZE][SIZE], int *row, int *col) {
     for (*row = 0; *row < SIZE; (*row)++) {
         for (*col = 0; *col < SIZE; (*col)++) {
             if (grid[*row][*col] == 0) {
@@ -126,11 +125,10 @@ bool findUnassignedLocation(int grid[SIZE][SIZE], int *row, int *col) {
 bool solveSudoku(int grid[SIZE][SIZE]) {
     int row, col;
     
-    if (!findUnassignedLocation(grid, &row, &col)) {
+    if (!findholes(grid, &row, &col)) {
         return true; // 所有位置都已填满
     }
     
-    // 创建数字1-9的随机排列
     int numbers[9] = {1, 2, 3, 4, 5, 6, 7, 8, 9};
     for (int i = 0; i < 9; i++) {
         int j = rand() % 9;
@@ -153,19 +151,19 @@ bool solveSudoku(int grid[SIZE][SIZE]) {
         }
     }
     
-    return false; // 触发回溯
+    return false; 
 }
 
 // 使用拉斯维加斯算法创建完整的数独网格
 bool createFullGridLasVegas(int grid[SIZE][SIZE], int preFilled) {
-    // 初始化网格为0
+
     for (int i = 0; i < SIZE; i++) {
         for (int j = 0; j < SIZE; j++) {
             grid[i][j] = 0;
         }
     }
     
-    // 随机填充一些单元格
+    // 随机填充单元格
     int count = 0;
     while (count < preFilled) {
         int row = rand() % SIZE;
@@ -183,39 +181,158 @@ bool createFullGridLasVegas(int grid[SIZE][SIZE], int preFilled) {
     return solveSudoku(grid);
 }
 
-// 创建完整的数独网格
+
+#include <time.h>
+
+#define SIZE 9
+
 void createFullGrid(int grid[SIZE][SIZE]) {
-    // 尝试使用拉斯维加斯算法生成数独
-    // 如果失败，增加预填充的数量并重试
-    int preFilled = 12; // 初始预填充数量
-    
-    clock_t start_time, end_time;
-    double cpu_time_used;
+    int preFilled = 12;
+    clock_t start_time, current_time;
+    double elapsed = 0.0;
+    const double TIME_LIMIT = 1.0; // 1秒超时
+
     start_time = clock();
 
     while (!createFullGridLasVegas(grid, preFilled)) {
+        current_time = clock();
+        elapsed = ((double)(current_time - start_time)) / CLOCKS_PER_SEC;
+
+        if (elapsed > TIME_LIMIT) {
+            // 超时，重新调用自身
+            createFullGrid(grid);
+            return; // 重要：避免递归返回后继续执行
+        }
+
         preFilled++;
-        if (preFilled > 30) {
-            preFilled = 12; // 重置，避免无限循环
+        if (preFilled > 20) {
+            preFilled = 12;
         }
     }
-    end_time = clock();
-    cpu_time_used = ((double)(end_time - start_time)) / CLOCKS_PER_SEC;
-    printf("生成完整数独用时: %.2f 秒\n", cpu_time_used);
 }
 
-// 挖洞创建谜题
 void digHoles(int grid[SIZE][SIZE], int holes) {
     int count = 0;
     while (count < holes) {
         int row = rand() % SIZE;
         int col = rand() % SIZE;
-        
+
         if (grid[row][col] != 0) {
+            int backup = grid[row][col];
             grid[row][col] = 0;
-            count++;
+
+            if (hasonly(grid)) {
+                count++;
+            } else {
+                grid[row][col] = backup; // 回溯
+            }
         }
     }
+
+    //printf("成功挖掉 %d 个洞，保持唯一解。\n", count);
+}
+
+// 计算数独解的数量
+int countSolutions(int grid[SIZE][SIZE]) {
+    int row, col;
+
+    if (!findholes(grid, &row, &col)) {
+        return 1; // 有完整解
+    }
+
+    int count = 0;
+
+    for (int num = 1; num <= 9; num++) {
+        if (isSafe(grid, row, col, num)) {
+            grid[row][col] = num;
+
+            count += countSolutions(grid);
+
+            grid[row][col] = 0; // 回溯
+
+            if (count > 1) {
+                return count; 
+            }
+        }
+    }
+
+    return count;
+}
+
+// 检查是否有唯一解
+bool hasonly(int grid[SIZE][SIZE]) {
+    int gridCopy[SIZE][SIZE];
+
+    for (int i = 0; i < SIZE; i++) {
+        for (int j = 0; j < SIZE; j++) {
+            gridCopy[i][j] = grid[i][j];
+        }
+    }
+
+    int solutions = countSolutions(gridCopy);
+    return solutions == 1;
+}
+
+//把玩家正在编辑的局面打印出来
+void printPlayerGrid()
+{
+    printf("\n当前局面（行列从 0 开始计）：\n");
+    for (int i = 0; i < SIZE; i++) {
+        if (i % 3 == 0 && i != 0) printf("------+-------+------\n");
+        for (int j = 0; j < SIZE; j++) {
+            if (j % 3 == 0 && j != 0) printf("| ");
+            printf(playerGrid[i][j] == 0 ? ". " : "%d ", playerGrid[i][j]);
+        }
+        printf("\n");
+    }
+}
+
+// 交互主函数：1 填数，2 删数，0 退出 
+void interactiveMode()
+{
+    int op, r, c, v, cnt;
+    memcpy(playerGrid, grid, sizeof(grid));
+    while (1) {
+        printPlayerGrid();
+        printf("\n请选择操作：1 填数  2 删数  0 退出\n");
+        if (scanf("%d", &op) != 1) continue;
+        if (op == 0) break;
+
+        if (op == 1) {                        
+            printf("格式：行 列  可填写多个       ");
+            printf("示例：0 0 5 1 2 3  表示 (0,0)->5, (1,2)->3\n");
+            printf("输入-1结束\n");
+            while (scanf("%d", &r) == 1 && r != -1) {
+                if (scanf("%d %d", &c, &v) != 2) break;
+                if (r < 0 || r >= SIZE || c < 0 || c >= SIZE || v < 1 || v > 9) {
+                    printf("坐标或数字非法，跳过\n");
+                    continue;
+                }
+                if (playerGrid[r][c] != 0) {
+                    printf("(%d,%d) 已有数字 %d，如需覆盖请先删数\n", r, c, playerGrid[r][c]);
+                    continue;
+                }
+               
+                playerGrid[r][c] = v;
+            }
+        }
+        else if (op == 2) {                  
+            printf("一次可删多个，格式：行 列 [行 列]...\n");
+            printf("输入-1结束本次删数\n");
+            while (scanf("%d", &r) == 1 && r != -1) {
+                if (scanf("%d", &c) != 1) break;
+                if (r < 0 || r >= SIZE || c < 0 || c >= SIZE) {
+                    printf("坐标非法，跳过\n");
+                    continue;
+                }
+                playerGrid[r][c] = 0;
+            }
+        }
+        else {
+            printf("输入非法，请重新选择\n");
+        }
+    }
+    printf("交互结束，最终局面已保存在 playerGrid 中。\n");
 }
 
 //函数

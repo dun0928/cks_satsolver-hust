@@ -38,10 +38,9 @@ typedef struct {
     int original_length;
     int current_length;
     int is_satisfied;
-    int unit_literal;       // 单子句文字缓存
+    int unit_literal;       // 单子句文字，用于赋值
 } Clause;
 
-/*-------------------- 文字出现记录 --------------------*/
 typedef struct {
     int clause_index;
     int literal_position;
@@ -52,7 +51,7 @@ typedef struct {
     int count;
     int capacity;
 } LiteralOccurrenceList;
-typedef struct { int clause_index, literal_position; } ChangeRecord;
+typedef struct { int clause_index, literal_position; } ChangeRecord;//第一个为子句编号，第二个为文字在子句中的位置
 typedef struct { int value; } VariableResult;
 
 extern int num_vars, original_formula_length, current_formula_length, max_clause_length;
@@ -70,9 +69,9 @@ extern int contradiction_found ;
 extern int conflicting_literal ;
 extern int dpll_call_count ;
 
-/* 扁平结构替代 literal_info */
+
 extern LiteralOccurrenceList *pos_literals, *neg_literals;
-extern uint8_t *in_unit_pos, *in_unit_neg; // 标记是否在单位子句堆中
+extern int *in_unit_pos, *in_unit_neg; // 标记是否在单位子句堆中
 
 
 extern VariableResult results[MAX_VARS + 1];
@@ -88,12 +87,19 @@ bool isSafeInBox(int grid[SIZE][SIZE], int startRow, int startCol, int num) ;
 bool isSafeInWindow(int grid[SIZE][SIZE], int row, int col, int num) ;
 bool isSafeInDiagonal(int grid[SIZE][SIZE], int row, int col, int num);
 bool isSafe(int grid[SIZE][SIZE], int row, int col, int num) ;
-bool findUnassignedLocation(int grid[SIZE][SIZE], int *row, int *col) ;
+bool findholes(int grid[SIZE][SIZE], int *row, int *col) ;
 bool solveSudoku(int grid[SIZE][SIZE]) ;
 bool createFullGridLasVegas(int grid[SIZE][SIZE], int preFilled) ;
 void createFullGrid(int grid[SIZE][SIZE]) ;
 void digHoles(int grid[SIZE][SIZE], int holes) ;
+bool hasonly(int grid[SIZE][SIZE]) ;
+int countSolutions(int grid[SIZE][SIZE]) ;
+void printPlayerGrid();
+void interactiveMode();
+
 //satsolver.cpp
+void printf_res(char *filename);
+void print_cnf(const char* filename);
 double satsolver(char *filename,int method);
 void preprocess();
 void assign_value(int literal);
@@ -105,6 +111,10 @@ int select_branching_variable();
 void write_result(int result_value, double time_used, char* filename);
 void free_memory();
 int read_cnf_file(char* filename);
+//heap.hpp
+void init_min_heap();
+void heap_insert(int len, int idx);
+
 
 
 //cnftosudoku.cpp
