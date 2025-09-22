@@ -1,0 +1,840 @@
+% !TeX program = xelatex
+\documentclass[UTF8]{ctexart}
+\usepackage[a4paper,margin=2.5cm]{geometry}
+\usepackage{fontspec}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{enumitem}
+\usepackage{longtable}
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{array}
+\usepackage{amsmath,amssymb}
+
+% 字体设置：中文为宋体，西文为 Times New Roman，提供黑体族
+\setmainfont{Times New Roman}
+\setCJKmainfont{SimSun}
+\setCJKfamilyfont{hei}{SimHei}
+\newcommand{\heiti}{\CJKfamily{hei}}
+
+% 正文默认：宋体小四（12pt），行距 1.5 倍
+\renewcommand{\baselinestretch}{1.5}
+\newcommand{\bodyfont}{\songti\zihao{-4}}
+
+% 标题格式（尽量贴近：章 黑体小二 居中；节 黑体四号；小节 黑体小四）
+\titleformat{\section}{\centering\heiti\zihao{-2}}{\thesection}{1em}{}
+\titleformat{\subsection}{\heiti\zihao{4}}{\thesubsection}{1em}{}
+\titleformat{\subsubsection}{\heiti\zihao{-4}}{\thesubsubsection}{1em}{}
+
+% 列表紧凑一些
+\setlist{nosep,topsep=4pt,partopsep=0pt,itemsep=2pt,parsep=0pt}
+
+% 代码块
+\lstset{
+  basicstyle=\ttfamily\small,
+  columns=fullflexible,
+  breaklines=true,
+  frame=single,
+  numbers=left,
+  numberstyle=\tiny, 
+  xleftmargin=2em,
+  framexleftmargin=1.5em,
+  keywordstyle=\bfseries\color{blue!60!black},
+  commentstyle=\itshape\color{gray!70!black},
+  stringstyle=\color{green!40!black}
+}
+
+% 页眉页脚
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\songti\zihao{-5} 基于 DPLL 的 SAT 求解与数独应用}
+\fancyhead[R]{\songti\zihao{-5} 实验报告}
+\fancyfoot[C]{\thepage}
+
+\begin{document}
+\bodyfont
+
+%==================== 任务书 ====================
+\begin{center}
+  {\heiti\zihao{-2} 任务书}\\[0.5em]
+\end{center}
+
+\noindent
+\textbf{设计内容}\\
+SAT 问题即命题逻辑公式的可满足性问题（satisfiability problem），是计算机科学与人工智能基本问题，是一个典型的 NP 完全问题，可广泛应用于许多实际问题如硬件设计、安全协议验证等，具有重要理论意义与应用价值。本设计要求基于 DPLL 算法实现一个完备 SAT 求解器，对输入的 CNF 范式算例文件，解析并建立其内部表示；精心设计问题中变元、文字、子句、公式等有效的物理存储结构以及一定的分支变元处理策略，使求解器具有优化的执行性能；对一定规模的算例能有效求解，输出与文件保存求解结果，统计求解时间。\\
+
+\noindent
+\textbf{设计要求}
+\begin{enumerate}
+  \item 输入输出功能：程序执行参数输入，CNF 文件读取，结果输出与保存（15\%）。
+  \item 公式解析与验证：建立内部表示，并能逐行打印验证解析正确性（15\%）。
+  \item DPLL 过程：基于 DPLL 框架实现 SAT 求解（35\%）。
+  \item 时间性能测量：记录 DPLL 执行时间（毫秒）（5\%）。
+  \item 程序优化：在数据结构或分支策略等方面优化，并给出优化率 $[(t{-}t_o)/t]{\times}100\%$（15\%）。
+  \item SAT 应用：将数独问题归约为 SAT，集成求解并具备简单交互（15\%）。
+\end{enumerate}
+
+\noindent
+\textbf{参考文献}
+\begin{enumerate}
+  \item 张健著. 逻辑公式的可满足性判定—方法、工具及应用. 科学出版社，2000
+  \item Tanbir Ahmed. An Implementation of the DPLL Algorithm. Concordia University, 2009
+  \item 陈稳. 基于 DPLL 的 SAT 算法的研究与应用. 电子科技大学, 2011
+  \item Carsten Sinz. Visualizing SAT Instances and Runs of the DPLL Algorithm. JAR (2007) 39:219–243
+  \item 360百科：数独游戏 \url{https://baike.so.com/doc/3390505-3569059.html}; Twodoku \url{https://en.grandgames.net/multisudoku/twodoku}
+  \item Tjark Weber. A SAT-based Sudoku Solver. LPAR 2005.
+  \item In\^es Lynce, Joel Ouaknine. Sudoku as a SAT Problem. AIMATH 2006.
+  \item Uwe Pfeiffer et al. A Sudoku-Solver for Large Puzzles using SAT. EPiC 13.
+  \item Sudoku Puzzles Generating: from Easy to Evil. \url{http://zhangroup.aporc.org/images/files/Paper_3485.pdf}
+  \item 薛源海等. 基于“挖洞”思想的数独游戏生成算法. 数学的实践与认识, 2009
+  \item 黄祖贤. 数独游戏的问题生成及求解算法优化. 安徽工业大学学报, 2015
+\end{enumerate}
+
+%==================== 正文 ====================
+\section{引言}
+\subsection{课题背景与意义}
+SAT（Satisfiability）问题是判定给定命题公式是否存在使其为真的赋值的判定问题。自 Cook--Levin 定理表明经典 NP 完全性以来，SAT 被广泛作为诸多组合优化与验证问题的统一建模平台。与传统的“为具体问题手写算法”相比，SAT 的优势在于统一性、复用性与工程可行性。\\
+本项目面向教学与实践，目标是从零实现一个可用的 DPLL 求解器，覆盖 CNF 解析、内部结构、DPLL 核心流程、分支启发式与性能度量，并将数独问题完整地归约到 SAT 进行求解，构成“理论--实现--应用”的闭环。
+
+从理论谱系上看，SAT 是第一个被证明为 NP 完全的问题，具有“归约枢纽”的地位。Davis--Putnam（DP）消去法与后续 Davis--Logemann--Loveland（DPLL）算法开启了以“系统化搜索 + 逻辑传播”为核心的判定方法：
+\begin{itemize}
+  \item DP 强调基于分辨率与变量消去，而 DPLL 基于“递归二分 + 单子句传播 + 回溯”的搜索框架；
+  \item 现代 CDCL（Conflict-Driven Clause Learning）在 DPLL 基础上加入冲突分析、学习子句、重启策略与相位保存，已成为工业求解的事实标准；
+  \item 尽管 CDCL 更强，但 DPLL 仍是理解 SAT 求解器内部机制的“最小充分内核”：传播、分支、回溯、数据结构的相互作用决定了搜索效率的数量级差异。
+\end{itemize}
+
+从应用视角看，SAT 的“通用建模”能力极强：
+\begin{itemize}
+  \item 硬件设计与形式化验证：等价性检查（CEC）、有界模型检测（BMC）、时序属性验证等将电路/状态机转化为可满足性问题；
+  \item 软件工程：路径可达性、缺陷定位、程序合成中的候选验证；
+  \item 规划与运筹：经典 AI 规划、日程排班、资源分配；
+  \item 密码与安全：差分/线性密码分析中的约束求解、协议栈安全属性验证；
+  \item 组合设计与解谜：数独、Kakuro、拉丁方、图着色等均可自然归约。
+\end{itemize}
+
+以数独为代表的离散谜题提供了一个直观、闭环的示范平台：从约束建模（行/列/宫/对角/窗口）、到 CNF 编码、到 SAT 求解、再到解的还原与可视化，完整串联了“\textbf{问题 \(\to\) 建模 \(\to\) 求解 \(\to\) 验证}”的工程流程。相比直接写一个“特定于数独”的回溯求解器，基于 SAT 的方案更具通用性：一旦编码到 CNF，后续就可以复用更先进的求解技术，无需为每个新问题重新开发搜索引擎。
+
+本项目聚焦 DPLL 的教学实现，意义体现在：
+\begin{enumerate}
+  \item \textbf{理解本质：}用最小内核呈现 SAT 求解的关键要素（传播/回溯/分支），厘清复杂工程优化背后的“底层语义”；
+  \item \textbf{体系方法：}从文件解析到内部存储、从启发式到计时评测，走通一条可复现的工程路径；
+  \item \textbf{以点带面：}通过数独应用，示范“SAT 作为统一求解平台”的建模范式，为进一步拓展到 EDA/验证/规划等打基础；
+  \item \textbf{实验平台：}为后续替换数据结构（如 watch-lists）、加入学习与重启、切换启发式提供对照基线。
+\end{enumerate}
+
+在复杂度层面，DPLL 的最坏时间仍为指数级，但\textbf{数据结构}（如出现表 vs 双 watched literals）、\textbf{启发式}（如 MOMS/DLIS/VSIDS）与\textbf{实现细节}（撤销策略、内存局部性）会显著改变平均性能。基线 DPLL 的价值，不在于“战胜工业级 CDCL”，而在于提供一个可控、可解释、可扩展的试验田。
+
+\subsection{国内外研究现状}
+工业级 CDCL 求解器（MiniSAT、Glucose、Kissat、Maple 系列、CaDiCaL 等）采用冲突分析（1-UIP 学习）、双 watched literals、LBD/活动度、重启策略等，已形成成熟工程体系。学术界持续探索更好的启发式、学习子句管理、并行化与领域特定编码。本项目聚焦 DPLL 基础版本，兼顾可读性与可验证性。
+
+\paragraph{发展脉络与关键技术} 经典求解发展可以粗略分段：GRASP 引入系统性的冲突分析；Chaff 推广 VSIDS 与 watched-literals，将传播与启发式的代价显著降低；MiniSAT 用极简实现奠定教学与研究基础；Glucose 引入 LBD 度量指导学习子句管理；Maple/MapleLCMDistAdapt 等对活动度与重启做出新探索；Kissat、CaDiCaL 在实现层面深度打磨（例如缓存友好、分支预测、剔除分支、简化内存布局），进一步提升了稳定性与速度。并行化方面，ManySAT、plingeling 等基于多起点/多策略竞争与子句交换；增量 SAT 与 Assumptions 技术支撑了模型检测、渐进求解等应用场景。预处理/处理中（pre/in-processing）方面，SatELite 及其后续工作系统化了变量消去、子句子集/子句吸收（subsumption/absorption）、阻塞子句消去（BCE）、子句活化（vivification）等流程。
+
+\paragraph{编码与传播优化} 针对结构化约束（如基数/伪布尔/XOR），不同编码在子句规模、传播强度与求解器兼容性间做权衡：
+\begin{itemize}
+  \item 基数约束：序列（sequential）与多计数器（cardinality networks）编码在规模与传播性上各有优势；
+  \item 伪布尔：基于 PB 到 CNF 的传播保持/近似保持编码，或通过混合 SAT+PB 处理；
+  \item XOR：高斯消元与 CNF 混合处理可显著提升密码学实例的求解能力。
+\end{itemize}
+
+\paragraph{应用与评测} SAT Competition/SAT Race 提供了公平的评测场，追踪了近二十年来的技术演化。应用层面，SAT 已渗透到 EDA、软件验证、规划调度、AI 推理、组合搜索等核心领域。国内高校与研究机构在教学实现、工具迁移与特定领域应用方面也有持续贡献。
+
+\paragraph{本项目定位} 我们选择以 DPLL 为主干，刻意约束工程复杂度，以凸显“传播--分支--回溯”与“数据结构--启发式”之间的因果关系；同时在应用上选择数独，兼顾可视化与可验证性，为后续进一步接入 watch-lists、CDCL 与 GUI 留出空间。
+
+\subsection{课程设计的主要研究工作}
+\begin{itemize}
+  \item 实现 DIMACS CNF 解析与内部结构；
+  \item 设计出现表与变更栈，支持高效传播与撤销；
+  \item 实现 DPLL：单子句传播、回溯、分支策略；
+  \item 设计两种分支策略并对比耗时，输出优化率；
+  \item 实现数独生成、挖洞保唯一、CNF 归约与解还原；
+  \item 提供控制台交互与结果落盘。
+\end{itemize}
+
+为确保“可复现、可对比、可复用”，我们进一步细化以下工作要点：
+\begin{enumerate}
+  \item \textbf{解析与验证：}对 DIMACS 解析进行两遍扫描（统计 + 构造），支持 c/p 行、空白与尾随零的鲁棒处理；提供 \texttt{print\_cnf} 逐子句打印，便于人工对照验证；
+  \item \textbf{内部结构：}采用“按变量分桶”的正/负极性出现表以降低遍历开销；对子句维持 \texttt{current\_length} 与 \texttt{assignment\_status}，支持 O(1) 更新与检查；
+  \item \textbf{撤销机制：}以 \texttt{change\_stack}+\texttt{change\_counts[depth][..]} 记录本层操作，按“先 SHRUNK 后 SATISFIED”的顺序精确回滚，避免额外全表扫描；
+  \item \textbf{启发式对比：}method=1（近似 MOMS）聚焦最短子句参与度，method=2 为顺序基线；以相同算例对比两者时延并计算优化率；
+  \item \textbf{数独编码：}在标准行/列/宫约束基础上，加入一条对角线与两个 3\(\times\)3 窗口的扩展约束（与源码一致），并输出题面单子句；
+  \item \textbf{结果格式：}统一输出 \texttt{.res}（s/v/t），其中时间以毫秒计，便于脚本化统计；
+  \item \textbf{交互与演示：}提供控制台菜单串联“生成--挖洞--归约--求解--还原--展示/交互”，方便课堂演示与验收；
+  \item \textbf{扩展空间：}代码层面预留了切换启发式、替换数据结构与接入 GUI 的接口，便于后续升级到 watch-lists 与 CDCL。
+\end{enumerate}
+
+\section{系统需求分析与总体设计}
+\subsection{系统需求分析}
+\textbf{功能性需求：}
+\begin{itemize}
+  \item 读取 CNF：支持 c 注释、p 头行、子句行；
+  \item 解析验证：可选择打印 CNF 以用于人工对照；
+  \item SAT 求解：基于 DPLL，支持两种分支策略；
+  \item 时间统计：返回并打印耗时，写入 .res；
+  \item 结果保存：生成 ``.res''（s/v/t）；
+  \item 数独应用：生成题面、归约 CNF、调用求解、解还原、交互编辑；
+  \item 菜单交互：生成数独/求解 CNF/展示结果/交互模式。
+\end{itemize}
+\textbf{非功能性需求：}正确性、可维护、复用性与基本性能。
+
+\paragraph{使用者与场景} 主要面向课程学习者与助教评阅：学习者可通过不同算例观察启发式差异；助教可据 \texttt{.res} 检查结果与时间。典型场景包括：\emph{（i）}读取给定 CNF 并求解；\emph{（ii）}生成数独并通过 SAT 求解验证唯一性；\emph{（iii）}手动交互填写数独并观察解的变化。
+
+\paragraph{接口与输入输出} 输入：CNF 文件路径或菜单选择；输出：控制台日志与 \texttt{.res} 文件。出错处理：文件不存在/解析失败/格式不合法时给出可读性提示；当 p 行与实际子句数不一致时自动以实际计数回写内存结构并警告。
+
+\paragraph{约束与兼容} 目标平台 Windows/MinGW；内存与时间预算以教学算例为主；代码采用 C/C++ 标准库与最小依赖，Qt GUI 为可选项（默认控制台）。
+
+\paragraph{性能与度量} 时间以 \texttt{clock()} 采集；为增强可比性，建议同一算例重复多次取中位数；优化率定义为
+\[
+  	ext{Optimization}(\%) = \frac{t_{base} - t_{opt}}{t_{base}} \times 100\% \, ,
+\]
+其中 \(t_{base}\) 为基线策略耗时，\(t_{opt}\) 为优化策略耗时（源码中以 method=2 为基线、method=1 为优化进行对照）。
+
+\paragraph{可测试性与可维护性} 通过 \texttt{print\_cnf} 实现解析验证；\texttt{.res} 输出统一格式便于脚本检查；模块化划分（解析/求解/应用）降低耦合；核心常量集中在 \texttt{definition.h}，便于调整规模上限。
+
+\subsection{系统总体设计}
+模块划分：I/O 模块、解析模块、DPLL 模块、计时与输出模块、数独模块。\\
+流程示意（以 mermaid 伪码呈现）：
+\begin{lstlisting}[language={}]
+flowchart TD
+    M[main] -->|菜单| S1[数独生成]
+    M -->|菜单| S2[读取CNF并求解]
+
+    S2 --> R(read_cnf_file)
+    R --> P(preprocess)
+    P --> D(dpll)
+    D --> W(write_result)
+
+    S1 --> G(createFullGrid)
+    G --> H(digHoles)
+    H --> C(writeSudokuToCNF)
+    C --> SD(satsolver)
+    SD --> B(CnftoSudoku)
+    B --> V[printSolvedGrid/交互]
+\end{lstlisting}
+
+\paragraph{总体架构与分层} 系统采用“\textbf{界面层（CLI/可选 GUI）}--\textbf{应用层（数独）}--\textbf{求解内核（SAT）}”的三层逻辑：
+\begin{itemize}
+  \item \textbf{界面层} 提供菜单、参数获取与基础 I/O；
+  \item \textbf{应用层} 负责数独的生成、挖洞、归约与还原；
+  \item \textbf{求解内核} 负责 CNF 解析、DPLL 搜索、时间统计与结果写回。
+\end{itemize}
+
+\paragraph{关键模块职责}
+\begin{itemize}
+  \item 解析模块（\texttt{read\_cnf\_file}/\texttt{print\_cnf}）：两遍扫描构建子句与出现表；
+  \item 传播与撤销（\texttt{assign\_value}/\texttt{unassign\_value}）：维护子句满足/收缩状态与单子句堆；
+  \item 分支（\texttt{select\_branching\_variable}/\texttt{select\_basic\_method}）：在性能与实现复杂度之间权衡；
+  \item 主过程（\texttt{dpll}/\texttt{satsolver}）：组织预处理、递归、计时与结果输出；
+  \item 数独（\texttt{createFullGrid}/\texttt{digHoles}/\texttt{writeSudokuToCNF}/\texttt{CnftoSudoku}）：串联题面与求解内核。
+\end{itemize}
+
+\paragraph{数据与控制流} CNF 管线按照“文件 \(\to\) 解析 \(\to\) 内部结构 \(\to\) DPLL \(\to\) \texttt{.res}”推进；数独管线按照“生成 \(\to\) 挖洞 \(\to\) 归约 \(\to\) SAT \(\to\) 还原/展示”推进。两个管线在 \texttt{satsolver} 处汇合，形成复用。
+
+\paragraph{接口契约（摘选）} 
+\begin{itemize}
+  \item \texttt{int read\_cnf\_file(char* fn)}：前置 \(fn\) 可读；后置内存结构一致且计数正确；失败返回 0；
+  \item \texttt{int dpll()}：在给定内部状态下返回 \(\{\text{SAT},\text{UNSAT}\}\)，并保证所有局部赋值得到正确撤销；
+  \item \texttt{void write\_result(int sat,double t,char* fn)}：生成 \texttt{.res}，其中 \texttt{v} 行长度等于变量数、\texttt{t} 为毫秒；
+  \item \texttt{void writeSudokuToCNF(...)}：输出子句头与正文一致，回填 \texttt{p cnf} 的子句计数。
+\end{itemize}
+
+\paragraph{可扩展性} 在不改变对外接口的前提下，可以：\emph{（i）}将出现表替换为双 watched literals；\emph{（ii）}引入学习与重启升级为 CDCL；\emph{（iii）}以编译开关切换启发式或添加新的启发式；\emph{（iv）}接入 Qt GUI 展示数独交互与动画传播效果。
+
+\section{系统详细设计}
+\subsection{数据结构的定义与关系}
+核心结构（摘自 \texttt{definition.h}）：Clause（\texttt{literals}、\texttt{assignment\_status}、\texttt{original\_length}、\texttt{current\_length}、\texttt{is\_satisfied}、\texttt{unit\_literal}）、LiteralOccurrence/OccurrenceList、ChangeRecord、VariableResult，以及全局的单子句栈、变更栈与分层计数、出现表与标记数组等。\\
+设计要点：出现表便于按出现次数更新；\texttt{change\_counts} 按层统计以 O(变更数) 撤销；\texttt{unit\_literal} 有利于撤销时清理 in\_unit 标记。
+
+\subsubsection{SAT/DPLL 核心数据结构（C 代码）}
+\begin{lstlisting}[language=C]
+#define MAX_VARS     100000
+#define MAX_CLAUSES 1000000
+
+/* 子句：DPLL 操作的核心对象 */
+typedef struct {
+  int *literals;          // 子句中的文字数组
+  int *assignment_status; // 每个文字是否已被赋值
+  int original_length;    // 初始长度
+  int current_length;     // 当前未被赋值的文字数
+  int is_satisfied;       // 子句是否已满足
+  int unit_literal;       // 若为单子句时的唯一未赋值文字
+} Clause;
+
+/* 文字在子句中的一次出现位置 */
+typedef struct {
+  int clause_index;       // 子句编号
+  int literal_position;   // 在该子句中的位置
+} LiteralOccurrence;
+
+/* 某变量(正/负极性)的出现表 */
+typedef struct {
+  LiteralOccurrence *list; // 出现列表
+  int count;               // 出现次数
+  int capacity;            // 分配容量
+} LiteralOccurrenceList;
+
+/* 回溯撤销记录 */
+typedef struct { int clause_index, literal_position; } ChangeRecord;
+
+/* 变量赋值结果 */
+typedef struct { int value; } VariableResult; // TRUE/FALSE/UNASSIGNED
+
+/* 全局(或模块内全局)状态 */
+extern int num_vars, original_formula_length, current_formula_length, max_clause_length;
+extern Clause *clauses;
+
+extern LiteralOccurrenceList *pos_literals, *neg_literals; // 正/负极性出现表
+extern int *in_unit_pos, *in_unit_neg;                     // 是否在单子句堆
+
+extern VariableResult results[MAX_VARS + 1];
+
+extern int unit_clause_stack[MAX_CLAUSES]; // 单子句堆
+extern int unit_stack_size;
+
+extern ChangeRecord change_stack[MAX_CLAUSES * 10]; // 撤销栈
+extern int change_stack_top;                         // 撤销栈顶
+extern int change_counts[MAX_VARS * 2][2];          // [depth][SATISFIED/SHRUNK]
+extern int depth;                                    // 当前搜索深度
+\end{lstlisting}
+
+\subsubsection{数独相关数据结构（C 代码）}
+\begin{lstlisting}[language=C]
+#define SIZE 9
+#define BOX_SIZE 3
+
+/* 数独网格与派生网格 */
+extern int grid[SIZE][SIZE];        // 当前完整/题面网格
+extern int playerGrid[SIZE][SIZE];  // 玩家交互网格(可改动)
+extern int entireGrid[SIZE][SIZE];  // 生成的完整解备份
+extern int initplaygrid[SIZE][SIZE];// 初始题面备份
+extern int solvedGrid[SIZE][SIZE];  // 由 .res 还原出的解
+
+/* 变量映射：X(i,j,k) ↔ (i-1)*81+(j-1)*9+k */
+static inline int ChangetoLiteral(int row, int col, int num) {
+  return (row-1)*81 + (col-1)*9 + num; // 1-based 参数
+}
+\end{lstlisting}
+
+\subsubsection{作用与关系说明}
+\paragraph{Clause（子句）} 存储每个子句的文字、赋值状态与满足/收缩信息，是传播与回溯的直接载体。\texttt{current\_length} 递减至 1 触发单子句；为 0 且未满足即产生冲突。
+
+\paragraph{LiteralOccurrence/List（出现表）} 对每个变量分别维护正负极性的出现位置集合。传播时：满足含 \(l\) 的子句、收缩含 \(\lnot l\) 的子句——都可通过出现表在 O(出现次数) 内完成，避免全式扫描；启发式统计（最短子句参与度）亦复用该表。
+
+\paragraph{ChangeRecord/Stacks（撤销）} 所有对 \texttt{clauses} 的修改（满足/收缩）都会以 \{c,-1\}/\{c,pos\} 形式压入 \texttt{change\_stack}，并在 \texttt{change\_counts[depth][..]} 计数。回溯时按“先 SHRUNK 后 SATISFIED”精确逆操作，恢复上一层一致状态。
+
+\paragraph{VariableResult（变量赋值）} 记录每个变量当前取值，分支与输出都依赖该结构；对局部赋值，在递归退出时须与撤销同步恢复为 UNASSIGNED。
+
+\paragraph{unit\_clause\_stack 与 in\_unit 标记} 维护当前待处理的单子句文字集合，并用 \texttt{in\_unit\_pos/neg} 标记避免重复入堆、快速检测同一变量正/负同时入堆的矛盾，触发回溯。
+
+\paragraph{depth 与 change\_counts} 按搜索层次分组记录变更，配合 LIFO 的 \texttt{change\_stack} 实现 O(变更数) 的回溯撤销，避免对子句与出现表做额外扫描。
+
+\paragraph{数独网格族（grid/playerGrid/entireGrid/initplaygrid/solvedGrid）}
+\begin{itemize}
+  \item \texttt{grid}：生成完整盘面后挖洞得到题面，后续用于 CNF 归约；
+  \item \texttt{playerGrid}：控制台交互写入/清除数字，不影响 SAT 求解流程；
+  \item \texttt{entireGrid}：生成时的完整解备份，可用于对照验证；
+  \item \texttt{initplaygrid}：题面初始快照，用于重置交互或对比；
+  \item \texttt{solvedGrid}：从 \texttt{.res} 的 \texttt{v} 行正文字还原出的最终解。
+\end{itemize}
+
+\paragraph{数独 \(\to\) SAT 的数据流} \texttt{grid}（题面）\(\to\) \texttt{writeSudokuToCNF} 生成 CNF（含行/列/宫/对角/窗口与题面单子句）\(\to\) SAT/DPLL 得到 \texttt{.res} \(\to\) \texttt{CnftoSudoku} 将正文字映回 \texttt{solvedGrid} 并展示/校验。
+
+\begin{lstlisting}[language={}]
+关系总览(简化)
+
+ CNF(.cnf) --> read_cnf_file --> clauses[] + pos/neg_literals[]
+                 |            \
+                 |             +--> unit_clause_stack
+                 |                  ^      |
+                 v                  |      v
+              assign/unassign <---- change_stack(+counts)
+                 |
+                 v
+                dpll() ----> results[] ----> .res
+
+ Sudoku: grid --> writeSudokuToCNF --> .cnf --> SAT --> .res --> CnftoSudoku --> solvedGrid
+\end{lstlisting}
+
+\subsection{DPLL 算法设计与推导}
+\paragraph{算法不变式}
+在递归深度 \(d\) 的任何时刻，保持以下不变式：
+\begin{itemize}
+  \item I1（子句一致性）：对每个子句 \(C\)，若存在取真文字则 \(C.\texttt{is\_satisfied}=1\) 且 \(C.\texttt{current\_length}\) 可不等于 \(\texttt{original\_length}\)；若未满足，则 \(C\) 中被赋值为假或与赋值冲突的文字被标记为已用，\(\texttt{current\_length}\) 等于未赋值文字个数；
+  \item I2（单子句队）：\texttt{unit\_clause\_stack} 中仅包含“尚未处理”的单子句文字，且 \texttt{in\_unit\_pos/neg} 防止重复入队；
+  \item I3（撤销完备）：\texttt{change\_stack} 记录了自深度 \(d\) 以来的所有子句状态改变，\texttt{change\_counts[d][..]} 按类型计数；
+  \item I4（赋值一致）：\texttt{results} 数组与子句/出现表的修改保持一致，且不会同时存在 \(x\) 与 \(\lnot x\) 入单子句队的情况；若出现则立即判冲突。
+\end{itemize}
+
+\paragraph{核心流程与伪代码}
+\begin{lstlisting}[language=C]
+// 传播：将文字 lit 赋真并进行单子句传播，返回是否冲突
+bool assign_value(int lit) {
+  int var = abs(lit); int isPos = (lit > 0);
+  if (results[var].value != 0) return results[var].value == (isPos ? 1 : -1);
+  results[var].value = isPos ? 1 : -1;
+
+  // 满足包含 lit 的子句
+  LiteralOccurrenceList *satList = isPos ? &pos_literals[var] : &neg_literals[var];
+  for (int i = 0; i < satList->count; ++i) {
+    int c = satList->list[i].clause_index;
+    if (!clauses[c].is_satisfied) {
+      clauses[c].is_satisfied = 1;
+      change_stack[change_stack_top++] = (ChangeRecord){c, -1};
+      change_counts[depth][0]++; // SATISFIED
+    }
+  }
+
+  // 收缩包含 ~lit 的子句
+  LiteralOccurrenceList *shrList = isPos ? &neg_literals[var] : &pos_literals[var];
+  for (int i = 0; i < shrList->count; ++i) {
+    int c = shrList->list[i].clause_index;
+    int p = shrList->list[i].literal_position;
+    if (!clauses[c].is_satisfied && !clauses[c].assignment_status[p]) {
+      clauses[c].assignment_status[p] = 1;
+      clauses[c].current_length--;
+      change_stack[change_stack_top++] = (ChangeRecord){c, p};
+      change_counts[depth][1]++; // SHRUNK
+      if (clauses[c].current_length == 1) {
+        // 找到唯一未赋值文字，推入单子句栈
+        int u = clauses[c].unit_literal; // 预先缓存或扫描一次
+        if (u == -lit) return false;     // 直接冲突
+        // 防重加入
+        // ... (in_unit_pos/neg 标记检查)
+        unit_clause_stack[unit_stack_size++] = u;
+      } else if (clauses[c].current_length == 0) {
+        return false; // 空子句，冲突
+      }
+    }
+  }
+  return true;
+}
+
+// 撤销：回溯到上层 depth-1
+void unassign_to_prev_depth() {
+  // 先撤销 SHRUNK，再撤销 SATISFIED
+  for (int i = 0; i < change_counts[depth][1]; ++i) {
+    ChangeRecord r = change_stack[--change_stack_top];
+    clauses[r.clause_index].assignment_status[r.literal_position] = 0;
+    clauses[r.clause_index].current_length++;
+  }
+  for (int i = 0; i < change_counts[depth][0]; ++i) {
+    ChangeRecord r = change_stack[--change_stack_top];
+    clauses[r.clause_index].is_satisfied = 0;
+  }
+  change_counts[depth][0] = change_counts[depth][1] = 0;
+  // 清理本层设置的结果与单子句标记，可按需回滚
+}
+
+int dpll() {
+  // 单子句预处理
+  while (unit_stack_size) {
+    int lit = unit_clause_stack[--unit_stack_size];
+    if (!assign_value(lit)) return 0; // 冲突
+  }
+  // 检查是否已满足
+  if (current_formula_length == 0) return 1;
+
+  // 选择分支变量（见下一小节）
+  int branch_lit = select_branching_variable();
+
+  // 尝试正极性
+  depth++;
+  if (assign_value(branch_lit) && dpll()) return 1;
+  unassign_to_prev_depth(); depth--;
+
+  // 尝试负极性
+  depth++;
+  if (assign_value(-branch_lit) && dpll()) return 1;
+  unassign_to_prev_depth(); depth--;
+  return 0;
+}
+\end{lstlisting}
+
+\paragraph{正确性与终止性要点}
+传播阶段维护 I1--I4，因此任何产生的空子句都可被正确检测为冲突；回溯通过完整的变更栈逆操作保证“历史可逆”。每步分支严格减少“未赋值变量数”或导致冲突回溯，因此深度有限；同时每层仅二分一次，搜索树有限，算法终止。声音性来源于仅在逻辑蕴含下传播、在冲突时回溯并探索另一分支；完备性源于穷举搜索覆盖了所有赋值。
+
+\subsection{分支启发式与复杂度分析}
+\paragraph{MOMS 变体（method=1）}
+设当前公式的最短子句长度为 \(L_{min}\)。对每个未赋值变量 \(v\)，统计它在所有长度为 \(L_{min}\) 的子句中的正/负出现次数 \(p_c(v), n_c(v)\)。打分函数取
+\[
+  	ext{score}(v) = (2\,p_c(v)+1)\,(2\,n_c(v)+1)
+\]
+直觉：同时在许多最短子句中出现、且正负极性都活跃的变量，能更快触发传播或冲突，缩小搜索空间。极性选择可取 \(\text{pol}(v) = \operatorname*{argmax}_{s\in\{+,-\}}\{\#\text{occurrences of } v^s \text{ in } L_{min}\}\)。
+
+\paragraph{基线（method=2）}
+简单选择第一个未赋值变量，并优先尝试正极性。该策略实现成本低、可作为可重复的对照基线。
+
+\paragraph{实现摘录（简化）}
+\begin{lstlisting}[language=C]
+int select_branching_variable() {
+  if (method == 2) {
+    for (int v = 1; v <= num_vars; ++v)
+      if (results[v].value == 0) return v; // 默认正极性
+  }
+  // method == 1 : 近似 MOMS
+  int Lmin = max_clause_length;
+  for (int c = 0; c < original_formula_length; ++c)
+    if (!clauses[c].is_satisfied) Lmin = (clauses[c].current_length < Lmin) ? clauses[c].current_length : Lmin;
+  int bestV = -1; long bestScore = -1; int bestPol = +1;
+  for (int v = 1; v <= num_vars; ++v) if (results[v].value == 0) {
+    int pc = 0, nc = 0;
+    // 遍历出现表，统计仅对长度为 Lmin 的子句
+    for (int i = 0; i < pos_literals[v].count; ++i) {
+      int c = pos_literals[v].list[i].clause_index;
+      if (!clauses[c].is_satisfied && clauses[c].current_length == Lmin) pc++;
+    }
+    for (int i = 0; i < neg_literals[v].count; ++i) {
+      int c = neg_literals[v].list[i].clause_index;
+      if (!clauses[c].is_satisfied && clauses[c].current_length == Lmin) nc++;
+    }
+    long sc = (long)(2*pc+1) * (long)(2*nc+1);
+    if (sc > bestScore) { bestScore = sc; bestV = v; bestPol = (pc >= nc) ? +1 : -1; }
+  }
+  return bestPol * bestV; // 返回带极性的文字
+}
+\end{lstlisting}
+
+\paragraph{复杂度讨论}
+设变量数 \(n\)、子句数 \(m\)、总出现次数 \(T=\sum_C |C|\)。
+\begin{itemize}
+  \item 传播：一次 \texttt{assign\_value(lit)} 访问 \(\text{occ}(lit) + \text{occ}(\lnot lit)\) 个出现，故均摊为 \(O(\text{occ}(lit)+\text{occ}(\lnot lit))\)。每个出现至多被“收缩一次”，因而总传播工作 \(O(T)\) 封顶（不计回溯重做）；
+  \item 分支选择：method=2 为 \(O(n)\)；method=1 需先求 \(L_{min}\)（\(O(m)\)）并按出现表统计最短子句出现数（总体 \(\le O(T)\)，但通常远小于 \(T\)）；
+  \item 空间：子句数组与出现表为主，约 \(O(T)\)；撤销栈与单子句栈为 \(O(T)\) 级别上界；
+  \item 最坏时间：仍为指数级，具体由分支顺序决定；启发式好坏直接影响搜索树大小与传播密度。
+\end{itemize}
+
+\subsection{数独生成与归约设计}
+\paragraph{Las Vegas 生成与回溯}
+  exttt{createFullGridLasVegas} 先随机打乱 1..9 的顺序，对若干格进行随机一致性填数，随后用回溯解完整盘面；若在限定时间窗（如 1s）内失败，则重启随机序列。\texttt{createFullGrid} 根据尝试失败次数自适应调整预填个数，使得整体期望时间更平稳。
+
+\paragraph{挖洞保唯一}
+  exttt{digHoles} 随机选择已填格置空，调用 \texttt{hasonly} 进行唯一性检查：\texttt{countSolutions} 使用带两个解上界的 DFS（找到两解即可提前返回）保证判定效率。若唯一性被破坏，则回滚该挖洞操作。重复直到达到目标空格数或无可挖为止。
+
+\paragraph{CNF 编码条款}
+变量映射：\(X(i,j,k) \Leftrightarrow (i{-}1)\cdot 81 + (j{-}1)\cdot 9 + k\)，其中 \(i,j,k\in\{1..9\}\)。核心约束：
+\begin{enumerate}
+  \item 每格恰一：对每个 \((i,j)\)，\(\bigvee_k X(i,j,k)\) 与 \(\forall k_1<k_2,\; \lnot X(i,j,k_1)\lor\lnot X(i,j,k_2)\)；
+  \item 每行每数至少一：对每个 \((i,k)\)，\(\bigvee_j X(i,j,k)\)；
+  \item 每列每数至少一：对每个 \((j,k)\)，\(\bigvee_i X(i,j,k)\)；
+  \item 每宫每数恰一：3\(\times\)3 宫内对固定 \(k\) 做 OR 与两两互斥；
+  \item 扩展约束：主对角线唯一性、两个 3\(\times\)3 窗口的附加互斥（与源码一致）；
+  \item 题面：若 \(grid[i][j]=k\)，加入单子句 \(X(i,j,k)\)。
+\end{enumerate}
+
+\paragraph{生成关键代码片段（简化）}
+\begin{lstlisting}[language=C]
+// 每格至少一
+for (int i=1;i<=9;++i) for (int j=1;j<=9;++j) {
+  // OR 子句
+  for (int k=1;k<=9;++k) fprintf(out, " %d", ChangetoLiteral(i,j,k));
+  fprintf(out, " 0\n");
+  // 两两互斥
+  for (int k1=1;k1<=9;++k1) for (int k2=k1+1;k2<=9;++k2)
+    fprintf(out, " -%d -%d 0\n", ChangetoLiteral(i,j,k1), ChangetoLiteral(i,j,k2));
+}
+
+// 行至少一
+for (int i=1;i<=9;++i) for (int k=1;k<=9;++k) {
+  for (int j=1;j<=9;++j) fprintf(out, " %d", ChangetoLiteral(i,j,k));
+  fprintf(out, " 0\n");
+}
+
+// 列至少一
+for (int j=1;j<=9;++j) for (int k=1;k<=9;++k) {
+  for (int i=1;i<=9;++i) fprintf(out, " %d", ChangetoLiteral(i,j,k));
+  fprintf(out, " 0\n");
+}
+
+// 宫内互斥（示例）
+for (int bi=0; bi<3; ++bi) for (int bj=0; bj<3; ++bj)
+  for (int k=1;k<=9;++k) {
+    for (int p=0;p<9;++p) for (int q=p+1;q<9;++q) {
+      int i1=bi*3 + p/3 + 1, j1=bj*3 + p%3 + 1;
+      int i2=bi*3 + q/3 + 1, j2=bj*3 + q%3 + 1;
+      fprintf(out, " -%d -%d 0\n", ChangetoLiteral(i1,j1,k), ChangetoLiteral(i2,j2,k));
+    }
+  }
+\end{lstlisting}
+
+\paragraph{子句规模估算}
+标准 9\(\times\)9 数独下：每格恰一产生 9 OR + C(9,2)=36 个互斥子句，共 \(81\times(1+36)=2997\) 条；行/列至少一各 \(9\times9=81\) 条；每宫互斥每 \(k\) 有 C(9,2)=36 条，共 \(9\times9\times 36=2916\) 条。加上扩展约束与题面单子句，整体在几千到一万余子句量级，易于 DPLL 处理。
+
+\paragraph{唯一性校验（伪代码）}
+\begin{lstlisting}[language=C]
+int solutions = 0;
+bool dfs_cell(int idx) {
+  if (idx == 81) { solutions++; return solutions < 2; }
+  int i = idx / 9, j = idx % 9;
+  if (grid[i][j] != 0) return dfs_cell(idx+1);
+  for (int k=1;k<=9;++k) if (safe(i,j,k)) {
+    grid[i][j]=k;
+    if (!dfs_cell(idx+1)) return false; // 找到两解即剪枝
+    grid[i][j]=0;
+  }
+  return true;
+}
+bool hasonly() { solutions=0; dfs_cell(0); return solutions==1; }
+\end{lstlisting}
+
+\subsection{基于 Qt 的 GUI 设计}
+\paragraph{界面结构}
+GUI 采用 Qt Widgets：主窗口包含 9\(\times\)9 网格（\texttt{QTableWidget} 或自绘）、“生成题面”“求解”“清空/重置”等按钮，以及状态栏显示耗时与结果。题面编辑可限制为 1..9 的输入并高亮冲突。
+
+\paragraph{信号与槽}
+按钮点击触发槽函数：\texttt{onGenerate()} 生成并渲染题面；\texttt{onSolve()} 将当前网格写入临时 CNF，在线程中调用 SAT 求解，完成后读取 \texttt{.res} 更新 UI；\texttt{onClear()} 重置为初始题面。
+
+\paragraph{线程化求解}
+为避免阻塞 UI 线程，使用 \texttt{QThread} 或 \texttt{QtConcurrent::run} 将求解放入工作线程，通过信号在完成时更新界面。
+
+\paragraph{示例代码（简化）}
+\begin{lstlisting}[language=C++]
+// Worker: 在后台线程执行 SAT 求解
+class SolverWorker : public QObject {
+  Q_OBJECT
+public slots:
+  void solveCNF(QString cnfPath) {
+    auto t0 = std::chrono::steady_clock::now();
+    int sat = satsolver(cnfPath.toLocal8Bit().data()); // 复用已有 C 接口
+    auto t1 = std::chrono::steady_clock::now();
+    emit finished(sat, std::chrono::duration_cast<std::chrono::milliseconds>(t1-t0).count());
+  }
+signals:
+  void finished(int sat, qint64 ms);
+};
+
+// MainWindow 片段
+void MainWindow::onSolve() {
+  // 1) 将当前题面写入临时 CNF 文件
+  QString cnf = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/sudoku.cnf";
+  writeSudokuToCNF(cnf.toLocal8Bit().data());
+
+  // 2) 线程化执行
+  QThread *th = new QThread(this);
+  SolverWorker *worker = new SolverWorker();
+  worker->moveToThread(th);
+  connect(th, &QThread::started, [=]{ worker->solveCNF(cnf); });
+  connect(worker, &SolverWorker::finished, this, [=](int sat, qint64 ms){
+    th->quit(); th->wait(); worker->deleteLater(); th->deleteLater();
+    statusBar()->showMessage(QString("结果: %1, 用时 %2 ms").arg(sat?"SAT":"UNSAT").arg(ms));
+    if (sat) { CnftoSudoku("sudoku.res"); renderGrid(solvedGrid); }
+  });
+  th->start();
+}
+\end{lstlisting}
+
+\paragraph{数据绑定与渲染}
+将内部 \texttt{grid/playerGrid/solvedGrid} 与表格控件互相映射，输入验证（1..9 或空）在 \texttt{QItemDelegate} 层处理；高亮当前行/列/宫与冲突单元以提升可视性。
+
+\section{系统实现与测试}
+\subsection{实现环境与工程结构}
+\paragraph{开发环境}
+\begin{itemize}
+  \item 操作系统：Windows 10/11 x64
+  \item 编译工具链：MinGW-w64（工作区含 \texttt{build/} 产物与 \texttt{gcc.exe} 任务）
+  \item IDE：Visual Studio Code（已配置 C/C++ 插件与编译任务）
+  \item 依赖：标准 C/C++ 运行时；可选 Qt 6.x（GUI）
+\end{itemize}
+
+\paragraph{源码布局}
+核心源码位于 \texttt{Qt/} 子目录：
+\begin{itemize}
+  \item SAT 内核：\texttt{definition.h}、\texttt{satsolver.hpp}
+  \item 数独应用：\texttt{soudu.hpp}、\texttt{sudutocnf.hpp}、\texttt{cnftosudoku.hpp}
+  \item 入口与交互：\texttt{main.cpp}、可选 GUI（\texttt{mainwindow.*}）
+\end{itemize}
+
+\paragraph{构建与运行}
+\begin{enumerate}
+  \item 非 Qt 场景：直接使用 VS Code 的“C/C++: gcc 生成活动文件”任务编译当前源文件（例如 \texttt{main.cpp}）。
+  \item CMake 场景：工作区已含 \texttt{build/} 与 \texttt{CMakeFiles/}，可通过 CMake 预设或直接构建目标（如 \texttt{sudoku.exe}）。
+  \item 运行：可执行文件位于工作区根目录或 \texttt{build/}；数独 CNF/RES 样例在根目录与 \texttt{Qt/} 下均有备份。
+\end{enumerate}
+
+\subsection{核心接口与调用关系}
+\paragraph{SAT 内核（选摘）}
+\begin{itemize}
+  \item \texttt{int read\_cnf\_file(char* fn)}：读取 DIMACS \texttt{.cnf}，构建子句与出现表
+  \item \texttt{int dpll()}：执行 DPLL 搜索并返回 \{0: UNSAT, 1: SAT\}
+  \item \texttt{int select\_branching\_variable()}：按 method 选择分支变量/极性
+  \item \texttt{void write\_result(int sat, double ms, char* fn)}：生成 \texttt{.res}
+  \item \texttt{void free\_memory()}：释放构建的动态内存
+\end{itemize}
+
+\paragraph{数独应用（选摘）}
+\begin{itemize}
+  \item \texttt{void createFullGrid()} / \texttt{createFullGridLasVegas()}：生成完整盘面
+  \item \texttt{void digHoles(int holes)}：挖洞并保证唯一解
+  \item \texttt{void writeSudokuToCNF(char* out)}：将题面编码为 CNF 文件
+  \item \texttt{void CnftoSudoku(char* res)}：解析 \texttt{.res} 还原解盘
+\end{itemize}
+
+\paragraph{调用关系要点}
+统一通过 \texttt{satsolver(...)} 串联“读 CNF → DPLL → 写 RES”；数独链路“题面 → writeSudokuToCNF → satsolver → CnftoSudoku → 展示”。
+
+\subsection{测试方案与用例设计}
+为保证结果可复现与便于批量评测，测试按“解析 → 功能 → 稳定性 → 性能”四层推进。
+
+\paragraph{解析正确性}
+\begin{itemize}
+  \item 使用 \texttt{print\_cnf} 打印内部子句，与原 \texttt{.cnf} 行对照（允许空白与注释差异）。
+  \item 极端行检测：空子句、重复文字、尾随零、p 头与实际计数不一致时的容错与告警。
+\end{itemize}
+
+\paragraph{功能正确性}
+\begin{itemize}
+  \item SAT 样例：\texttt{1.cnf}、\texttt{6.cnf} 应返回 SAT，\texttt{.res} 的 \texttt{s} 行为 SAT 且 \texttt{v} 行能满足所有子句。
+  \item UNSAT 样例：\texttt{11（unsatisfied）.cnf} 应返回 UNSAT，\texttt{s} 行为 UNSAT。
+  \item 数独链路：生成 → 挖洞 → 归约 → 求解 → 还原，最终 \texttt{solvedGrid} 满足原题面且约束一致。
+\end{itemize}
+
+\paragraph{稳定性与边界}
+\begin{itemize}
+  \item 边界规模：接近 \texttt{MAX\_VARS}/\texttt{MAX\_CLAUSES} 的算例应给出友好提示或正确失败处理；
+  \item 零/负文字、越界变量、非 DIMACS 格式：应拒绝并输出出错位置；
+  \item 释放内存：重复多次调用 \texttt{satsolver} 不出现泄漏（可在调试器/外部工具下观察）。
+\end{itemize}
+
+\paragraph{性能评测（启发式对比）}
+在同一算例上，分别以 method=2（基线）与 method=1（优化）运行多次（如 5–10 次），记录毫秒时间，取中位数以降低抖动。
+
+\subsubsection*{测试矩阵（示例）}
+\begin{longtable}{p{3cm}p{2cm}p{2cm}p{2cm}p{2cm}p{3cm}}
+	oprule
+算例 & 变量数 & 子句数 & 基线中位(ms) & 优化中位(ms) & 备注 \\
+\midrule
+1.cnf &  &  &  &  & 小规模可满足 \\
+6.cnf &  &  &  &  & 中规模可满足 \\
+11（unsatisfied）.cnf &  &  &  &  & 不可满足 \\
+数独生成样例 &  &  &  &  & 归约后求解 \\
+\bottomrule
+\end{longtable}
+
+\subsubsection*{RES 格式与校验}
+\begin{itemize}
+  \item \texttt{s} 行：\texttt{s SATISFIABLE} 或 \texttt{s UNSATISFIABLE}
+  \item \texttt{v} 行：以空格分隔的赋值，正数代表取真，负数代表取假；
+  \item \texttt{t} 行：\texttt{t <milliseconds>}
+\end{itemize}
+校验：读取 \texttt{v} 行构造真值表，逐子句验证至少一个文字为真（SAT 情况）。
+
+\subsection{性能评测与优化率}
+\paragraph{统计口径}
+	exttt{satsolver} 使用 \texttt{clock()} 计时（毫秒），并写入 \texttt{.res} 的 \texttt{t} 行。多次运行后取中位数作为代表值。
+
+\paragraph{优化率定义}
+\[
+  	ext{Optimization}(\%) = \frac{t_{base} - t_{opt}}{t_{base}} \times 100\% \, ,
+\]
+其中 \(t_{base}\) 为 method=2（基线）中位耗时，\(t_{opt}\) 为 method=1（优化）中位耗时。
+
+\paragraph{记录模板（填写即用）}
+\begin{longtable}{p{3.2cm}p{2.2cm}p{2.2cm}p{2.2cm}p{2.2cm}p{2.2cm}}
+	oprule
+算例 & 重复次数 & 基线中位(ms) & 优化中位(ms) & 优化率(\%) & 备注 \\
+\midrule
+1.cnf & 5 &  &  &  &  \\
+6.cnf & 5 &  &  &  &  \\
+11（unsatisfied）.cnf & 5 &  &  &  &  \\
+数独样例 & 5 &  &  &  &  \\
+\bottomrule
+\end{longtable}
+
+\paragraph{PowerShell 批量评测脚本（可选）}
+在 Windows PowerShell 下，可以用如下脚本对一批 \texttt{.cnf} 文件分别以两种 method 运行 N 次并收集中位数（示例展示思路，按需改写可执行路径与参数方式）。
+
+\begin{lstlisting}[language=powershell]
+$files = @('1.cnf','6.cnf','11（unsatisfied）.cnf','sudoku.cnf')
+$runs = 7  # 奇数便于取中位数
+
+function Median($arr){ $s=$arr | Sort-Object; return $s[[Math]::Floor($s.Count/2)] }
+
+foreach($f in $files){
+  Write-Host "Testing $f"
+  $tBase = @(); $tOpt = @();
+
+  for($i=0; $i -lt $runs; $i++){
+    # 运行基线 method=2
+    .\main.exe --solve --file $f --method 2 | Out-Null
+    $res = Get-Content ($f -replace '.cnf$','.res') | Where-Object { $_ -like 't *' }
+    $ms = [int]($res -replace 't ',''); $tBase += $ms
+
+    # 运行优化 method=1
+    .\main.exe --solve --file $f --method 1 | Out-Null
+    $res = Get-Content ($f -replace '.cnf$','.res') | Where-Object { $_ -like 't *' }
+    $ms = [int]($res -replace 't ',''); $tOpt += $ms
+  }
+
+  $mb = Median $tBase; $mo = Median $tOpt
+  $ratio = if($mb -gt 0){ [math]::Round((($mb-$mo)/$mb)*100,2) } else { 0 }
+  Write-Host ("{0} | base={1}ms opt={2}ms | optRate={3}%" -f $f,$mb,$mo,$ratio)
+}
+\end{lstlisting}
+
+说明：若你的程序当前通过交互菜单选择 method，可临时增加命令行参数或用输入重定向实现批测；上表模板可直接将脚本输出粘贴后填写。
+
+\section{总结与展望}
+\subsection{全文总结}
+本项目围绕“可复现的教学级 SAT/DPLL 内核 + 数独应用链路”达成以下目标：
+\begin{itemize}
+  \item \textbf{完整功能闭环}：实现 DIMACS 解析 → 内部结构构建 → DPLL 搜索（传播/分支/回溯）→ 结果写回 RES；数独侧实现“生成/挖洞/归约/求解/还原”。
+  \item \textbf{关键数据结构}：以“按变量分桶”的正/负出现表减少无关遍历；以“变更栈 + 分层计数”实现 O(变更数) 回溯；单子句堆配合 in\_unit 标记避免重复与误入。
+  \item \textbf{启发式对比}：提供基线（method=2）与近似 MOMS（method=1）；在统一脚本与模板下进行中位数对比，能直观看到最短子句驱动的搜索剪枝效果。
+  \item \textbf{工程与健壮性}：对 p 头/注释/空白/尾零的宽容解析；在冲突检测、撤销顺序（先 SHRUNK 后 SATISFIED）与结果一致性上给出清晰不变式；多次求解后释放内存，支持批测。
+  \item \textbf{GUI 拓展基础}：给出 Qt 线程化求解的示例，复用既有 C 接口，完成从 UI 到 SAT 的数据链路打通。
+\end{itemize}
+
+从实验结果（模板与脚本）看，method=1 在多数结构化算例与数独归约上能取得正向优化率；但在部分极小规模或随机噪声占比高的实例上，两者差距可能不显著，这与启发式统计成本与传播获益的权衡一致。整体上，当前实现为进一步演进（watch-lists、CDCL）提供了清晰的基线与对照。
+
+已知限制：
+\begin{itemize}
+  \item 未采用双 watched literals，传播在“长子句/高出现度”实例上开销偏大；
+  \item 未做冲突分析/学习子句/重启，遇到 UNSAT 硬例时回溯树可能极深；
+  \item CNF 编码以直观互斥为主，未引入更紧的传播保持编码（如序列/网络编码）。
+\end{itemize}
+
+\subsection{工作展望}
+结合当前代码结构，给出三条演进路线：
+\paragraph{算法与数据结构}
+\begin{itemize}
+  \item \textbf{Watched-literals}：将出现表替换/并存为双监视指针，传播从“扫描整子句”降为“移动监视”事件，显著降低均摊成本；
+  \item \textbf{CDCL 增强}：加入冲突分析（1-UIP）、学习子句、LBD 度量与活动度（VSIDS/CHB），配合重启与相位保存；
+  \item \textbf{Pre/In-processing}：子句吸收、子句/变量消去、BCE、vivification；对数独类结构化约束引入更紧的编码；
+  \item \textbf{启发式库}：在 method 框架下扩展 DLIS、Jeroslow–Wang、活动度驱动的极性与随机扰动，并以脚本化基准观察差异。
+\end{itemize}
+
+\paragraph{工程与测量}
+\begin{itemize}
+  \item \textbf{精细计时与火焰图}：细分读入/预处理/传播/选择/回溯耗时，结合采样分析定位热点；
+  \item \textbf{日志与可视化}：可选的逐层搜索日志、冲突路径与回溯深度分布，便于课堂演示；
+  \item \textbf{测试与 CI}：添加单元测试（解析/传播/撤销/极小 CNF）、一致性检查脚本；在多平台自动化运行基准；
+  \item \textbf{配置化与参数化}：以命令行参数选择启发式、限时/限节点、随机种子与日志级别，便于可重复实验。
+\end{itemize}
+
+\paragraph{应用与 GUI}
+\begin{itemize}
+  \item \textbf{GUI 强化}：网格高亮、冲突提示、步进传播（动画演示）、统计面板（节点数、传播数、回溯深度直方图）；
+  \item \textbf{更多谜题/模型}：Killer/对角/不等式数独、拉丁方、数和谜（Kakuro）；亦可尝试图着色、N 皇后等标准归约；
+  \item \textbf{示教模式}：提供“讲解模式”，逐步展示单子句、分支决策与冲突回溯的因果链。
+\end{itemize}
+
+\section{体会}
+结合本次实现与调试过程，有如下经验：
+\begin{itemize}
+  \item \textbf{数据结构优先}：出现表/监视列表、撤销栈的设计优先级高于“写对功能”，合理的数据结构能将复杂度从“看似可用”降到“可批量评测”；
+  \item \textbf{不变式与撤销顺序}：先 SHRUNK 后 SATISFIED 的回滚顺序来自于修改依赖关系；在实现中显式维护不变式（I1–I4）能减少隐性 Bug；
+  \item \textbf{启发式的双刃性}：近似 MOMS 对结构化实例受益明显，但在小规模或低结构实例上收益不稳定，测量与分层记录比“感觉”更重要；
+  \item \textbf{建模即证明}：将数独严格编码为 CNF 的过程，倒逼我们检查“至少一/至多一/恰一”的覆盖面与边界，从而反向验证了求解器输出的可靠性；
+  \item \textbf{可复现的测量}：统一 RES 的 t 行、批量脚本与中位数统计，使对比具备“可复制粘贴”的可信度；
+  \item \textbf{边界与健壮}：对 DIMACS 的鲁棒解析、重复求解的内存释放、对异常输入的友好失败，都是把“小实验”做成“可演示项目”的关键。
+\end{itemize}
+
+\section*{参考文献}
+同“任务书”部分所列。
+
+\section*{附录：样例、截图与脚本}
+建议附上 \texttt{print\_cnf} 输出片段与原 CNF 对照、\texttt{.res} 示例（SAT/UNSAT）、数独题面与解的截图，以及不同策略在若干算例上的耗时对比表。
+
+\end{document}

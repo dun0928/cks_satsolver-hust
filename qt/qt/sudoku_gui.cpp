@@ -17,20 +17,20 @@
 #include <QTimer>
 #include <QLCDNumber>
 
-//é¢œè‰²
-static const char* BG_FIXED  = "#c0c0c0";   // é¢˜ç›®ç»™å®šæ ¼
-static const char* BG_INPUT  = "#ffffff";   // ç”¨æˆ·ç©ºæ ¼
-static const char* BG_OK     = "#88ff88";   // éªŒè¯æ­£ç¡®
-static const char* BG_ERROR  = "#ff8888";   // éªŒè¯é”™è¯¯
-static const char* MICKEY_YELLOW = "#f5e7c9"; // ç±³é»„åœ°æ¿
-static const char* MICKEY_BLUE   = "#c9e7f5"; // æµ…è“åœ°æ¿
-static const char* MICKEY_BLACK  = "#333333"; // æ·±ç°æ–‡å­—
+//ÑÕÉ«
+static const char* BG_FIXED  = "#c0c0c0";   
+static const char* BG_INPUT  = "#ffffff";   
+static const char* BG_OK     = "#88ff88";   
+static const char* BG_ERROR  = "#ff8888";   
+static const char* MICKEY_YELLOW = "#f5e7c9"; 
+static const char* MICKEY_BLUE   = "#c9e7f5"; 
+static const char* MICKEY_BLACK  = "#333333"; 
 
 static int(*g_sol)[9];
 static int(*g_init)[9];
 static int(*g_play)[9];
 
-//è¯»å–å’Œä¿å­˜
+//¶ÁÈ¡ºÍ±£´æ
 static QString stateFile()
 {
     return QDir::home().absoluteFilePath(".sudoku_state.txt");
@@ -63,11 +63,11 @@ static QVector<QPair<int,int>> loadUserInput()
     return lst;
 }
 
-//é‡åš
+//ÖØ×ö
 struct Snapshot{ int grid[9][9]; };
 static QStack<Snapshot> redoStack;
 
-//suduboardçš„uiä¸æ–¹æ³•
+//suduboardµÄuiÓë·½·¨
 class SudokuBoard : public QWidget{
     Q_OBJECT
 public:
@@ -77,13 +77,13 @@ public:
         for(int r=0;r<9;++r)
             for(int c=0;c<9;++c){
                 int val = g_play[r][c];
-                if(g_init[r][c]!=0){        // é¢˜ç›®ç»™å®š
+                if(g_init[r][c]!=0){        // ÌâÄ¿¸ø¶¨
                     le[r][c] = new QLineEdit(QString::number(val),this);
                     le[r][c]->setReadOnly(true);
                     le[r][c]->setStyleSheet(
                         QString("QLineEdit{background:%1;border:1px solid #555;}")
                         .arg(BG_FIXED));
-                }else{                      // ç”¨æˆ·å¡«å†™
+                }else{                      // ÓÃ»§ÌîĞ´
                     le[r][c] = new QLineEdit(this);
                     le[r][c]->setMaxLength(1);
                     le[r][c]->setValidator(new QIntValidator(1,9,this));
@@ -98,11 +98,11 @@ public:
                 lay->addWidget(le[r][c],r,c);
             }
 
-        /* è¯»ç›˜æ—¶ä¸å†æ ‡ç»¿ï¼Œç›´æ¥çº¯ç™½ï¼ˆä¸ BG_INPUT ä¸€è‡´ï¼‰ */
+        /* ¶ÁÅÌÊ±²»ÔÙ±êÂÌ£¬Ö±½Ó´¿°×£¨Óë BG_INPUT Ò»ÖÂ£© */
         for(auto p: loadUserInput()){
             int r=p.first, c=p.second;
             le[r][c]->setText(QString::number(g_play[r][c]));
-            // ä¸å†æ”¹èƒŒæ™¯è‰²ï¼Œä¿æŒé»˜è®¤ç™½è‰²
+            // ²»ÔÙ¸Ä±³¾°É«£¬±£³ÖÄ¬ÈÏ°×É«
         }
     }
 
@@ -124,8 +124,8 @@ public:
                     allOk=false;
                 }
             }
-        QMessageBox::information(this,"éªŒè¯ç»“æœ",
-                                 allOk?"å…¨éƒ¨æ­£ç¡®ï¼":"ç»¿è‰²=æ­£ç¡®ï¼Œçº¢è‰²=é”™è¯¯ï¼Œç©ºç™½=æœªå¡«");
+        QMessageBox::information(this,"ÑéÖ¤½á¹û",
+                                 allOk?"È«²¿ÕıÈ·£¡":"ÂÌÉ«=ÕıÈ·£¬ºìÉ«=´íÎó£¬¿Õ°×=Î´Ìî");
     }
 
     void redo(){
@@ -137,7 +137,7 @@ public:
                 le[r][c]->setText(g_play[r][c]==0?"":QString::number(g_play[r][c]));
             }
     }
-    void pushRedoSnap(){   // å¤–éƒ¨è°ƒç”¨ï¼šä¿å­˜å½“å‰çŠ¶æ€åˆ° redo æ ˆ
+    void pushRedoSnap(){   // Íâ²¿µ÷ÓÃ£º±£´æµ±Ç°×´Ì¬µ½ redo Õ»
         Snapshot s;
         for(int r=0;r<9;++r) for(int c=0;c<9;++c) s.grid[r][c]=g_play[r][c];
         redoStack.push(s);
@@ -147,7 +147,7 @@ public:
         for(int c = 0; c < 9; ++c){
             int v = g_play[r][c];
             le[r][c]->setText(v == 0 ? "" : QString::number(v));
-            if(g_init[r][c] != 0) continue;   // é¢˜ç›®ç»™å®šæ ¼ä¸åŠ¨
+            if(g_init[r][c] != 0) continue;   // ÌâÄ¿¸ø¶¨¸ñ²»¶¯
             le[r][c]->setStyleSheet(
                 QString("QLineEdit{background:%1;border:1px solid #555;}")
                 .arg(v == 0 ? BG_INPUT : BG_OK));
@@ -158,20 +158,20 @@ private:
     QLineEdit* le[9][9]{};
 };
 
-//äº¤äº’æ¡†æ¶
+//½»»¥¿ò¼Ü
 #include <QLCDNumber>
 #include <QTimer>
 class SudokuDialog : public QDialog{
     Q_OBJECT
 public:
     SudokuDialog(QWidget* parent=nullptr):QDialog(parent){
-        setWindowTitle("æ•°ç‹¬ Â· ç±³å¥‡é»„ç‰ˆ");
+        setWindowTitle("Êı¶À ");
         resize(420,480);
-        // ç±³é»„åœ°æ¿
+        // Ã×»ÆµØ°å
         setStyleSheet(QString("QDialog{background:%1;}").arg(MICKEY_YELLOW));
         auto* topLay=new QHBoxLayout();
-        auto* redoBtn   = new QPushButton("â†· é‡åš",this);
-        auto* restartBtn= new QPushButton("ğŸ”„ é‡å¯",this);
+        auto* redoBtn   = new QPushButton("? ÖØ×ö",this);
+        auto* restartBtn= new QPushButton("? ÖØÆô",this);
         lcd=new QLCDNumber(this);
         lcd->setDigitCount(8);
         lcd->setSegmentStyle(QLCDNumber::Flat);
@@ -191,16 +191,16 @@ public:
         topLay->addStretch();
         topLay->addWidget(lcd);
 
-        /* æ£‹ç›˜ */
+        /* ÆåÅÌ */
         board=new SudokuBoard(this);
         auto* lay=new QVBoxLayout(this);
         lay->addLayout(topLay);
         lay->addWidget(board);
 
-        /* åº•éƒ¨æŒ‰é’® */
+        /* µ×²¿°´Å¥ */
         auto* hLay=new QHBoxLayout();
-        auto* verifyBtn=new QPushButton("éªŒè¯",this);
-        auto* closeBtn =new QPushButton("å…³é—­",this);
+        auto* verifyBtn=new QPushButton("ÑéÖ¤",this);
+        auto* closeBtn =new QPushButton("¹Ø±Õ",this);
         verifyBtn->setStyleSheet(btnStyle(MICKEY_YELLOW,"#43a047"));
         closeBtn ->setStyleSheet(btnStyle(MICKEY_YELLOW,MICKEY_BLACK));
         hLay->addWidget(verifyBtn);
@@ -231,7 +231,7 @@ private:
     }
 };
 
-/* --------------- C æ¥å£ --------------- */
+//½Ó¿Ú
 extern "C" void runInteractiveGui(int sol[9][9],
                                   int player[9][9],
                                   int init[9][9])

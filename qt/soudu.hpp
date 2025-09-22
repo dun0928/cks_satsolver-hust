@@ -194,10 +194,6 @@ bool createFullGridLasVegas(int grid[SIZE][SIZE], int preFilled) {
 }
 
 
-#include <time.h>
-
-#define SIZE 9
-
 void createFullGrid(int grid[SIZE][SIZE]) {
     int preFilled = 12;
     clock_t start_time, current_time;
